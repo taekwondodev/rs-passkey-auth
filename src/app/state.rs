@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use deadpool_postgres::Pool;
+use webauthn_rs::Webauthn;
 
 use crate::auth::{
     repo::user_repo::{AuthRepository, UserRepository},
@@ -13,9 +14,9 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(db: Pool) -> Self {
+    pub fn new(webauthn: Webauthn, db: Pool) -> Self {
         let user_repo: Arc<dyn AuthRepository> = Arc::new(UserRepository::new(db.clone()));
-        let auth_service = Arc::new(AuthService::new(user_repo));
+        let auth_service = Arc::new(AuthService::new(webauthn, user_repo));
         Self {
             auth_service: auth_service,
         }

@@ -1,5 +1,8 @@
 use axum::{Router, routing::get};
-use rs_passkey_auth::{app::AppState, config::postgres::DbConfig};
+use rs_passkey_auth::{
+    app::AppState,
+    config::{postgres::DbConfig, webauthn::WebAuthnConfig},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -12,14 +15,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .await
         .map_err(|e| format!("Failed to get database connection: {}", e))?;
 
-    let state = AppState::new(db_pool);
+    let webauthn_config = WebAuthnConfig::from_env();
+    let webauthn = webauthn_config
+        .create_webauthn()
+        .map_err(|e| format!("Failed to build webauthn: {}", e))?;
+
+    let state = AppState::new(webauthn, db_pool);
 
     let app = Router::new()
         .route("/", get(|| async { "Hello World" }))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
-    println!("Server listening on http://0.0.0.0:3000");
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    println!("Server listening on http://0.0.0.0:8080");
     axum::serve(listener, app).await?;
 
     Ok(())
