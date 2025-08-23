@@ -19,11 +19,6 @@ pub struct Credential {
     pub user_id: Uuid,
     pub public_key: Vec<u8>,
     pub sign_count: i64,
-    pub transports: Option<Vec<String>>,
-    pub aaguid: Option<Uuid>,
-    pub attestation_format: Option<String>,
-    pub backup_eligible: bool,
-    pub backup_state: bool,
     pub created_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
 }

@@ -105,17 +105,7 @@ impl AuthService {
             AppError::WebAuthnOperation(format!("Failed to serialize public key: {:?}", e))
         })?;
         self.auth_repo
-            .create_credential(
-                passkey.cred_id(),
-                user.id,
-                &public_key_bytes,
-                0,
-                None,
-                None,
-                None,
-                false,
-                false,
-            )
+            .create_credential(passkey.cred_id(), user.id, &public_key_bytes, 0)
             .await?;
 
         self.auth_repo.delete_webauthn_session(session_id).await?;

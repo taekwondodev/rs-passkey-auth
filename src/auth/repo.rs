@@ -31,11 +31,6 @@ pub trait AuthRepository: Send + Sync {
         user_id: Uuid,
         public_key: &[u8],
         sign_count: i64,
-        transports: Option<&[String]>,
-        aaguid: Option<Uuid>,
-        attestation_format: Option<&str>,
-        backup_eligible: bool,
-        backup_state: bool,
     ) -> Result<(), AppError>;
     async fn get_credential_by_user(&self, user_id: Uuid) -> Result<Vec<Credential>, AppError>;
     async fn update_credential(&self, id: &[u8], sign_count: i64) -> Result<(), AppError>;
@@ -79,11 +74,6 @@ impl PgRepository {
             user_id: row.try_get("user_id")?,
             public_key: row.try_get("public_key")?,
             sign_count: row.try_get("sign_count")?,
-            transports: row.try_get("transports")?,
-            aaguid: row.try_get("aaguid")?,
-            attestation_format: row.try_get("attestation_format")?,
-            backup_eligible: row.try_get("backup_eligible")?,
-            backup_state: row.try_get("backup_state")?,
             created_at: row.try_get("created_at")?,
             last_used_at: row.try_get("last_used_at")?,
         })
@@ -192,18 +182,13 @@ impl AuthRepository for PgRepository {
         user_id: Uuid,
         public_key: &[u8],
         sign_count: i64,
-        transports: Option<&[String]>,
-        aaguid: Option<Uuid>,
-        attestation_format: Option<&str>,
-        backup_eligible: bool,
-        backup_state: bool,
     ) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client
                 .execute(
-                    "INSERT INTO credentials (id, user_id, public_key, sign_count, transports, aaguid, attestation_format, backup_eligible, backup_state) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-                    &[&id, &user_id, &public_key, &sign_count, &transports, &aaguid, &attestation_format, &backup_eligible, &backup_state],
+                    "INSERT INTO credentials (id, user_id, public_key, sign_count) VALUES ($1, $2, $3, $4)",
+                    &[&id, &user_id, &public_key, &sign_count],
                 )
                 .await?;
 
