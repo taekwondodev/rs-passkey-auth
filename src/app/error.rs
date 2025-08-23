@@ -77,3 +77,9 @@ impl From<deadpool_postgres::PoolError> for AppError {
         AppError::DatabaseConnection(value.to_string())
     }
 }
+
+impl From<tokio_postgres::Error> for AppError {
+    fn from(value: tokio_postgres::Error) -> Self {
+        AppError::DatabaseOperation(value.to_string())
+    }
+}

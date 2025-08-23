@@ -7,17 +7,10 @@ pub struct User {
     pub id: Uuid,
     pub username: String,
     pub role: String,
-    pub status: UserStatus,
+    pub status: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub is_active: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum UserStatus {
-    Pending,
-    Active,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,14 +33,7 @@ pub struct WebAuthnSession {
     pub id: Uuid,
     pub user_id: Uuid,
     pub data: serde_json::Value,
-    pub purpose: SessionPurpose,
+    pub purpose: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum SessionPurpose {
-    Registration,
-    Login,
 }

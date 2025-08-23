@@ -4,7 +4,7 @@ use deadpool_postgres::Pool;
 use webauthn_rs::Webauthn;
 
 use crate::auth::{
-    repo::user_repo::{AuthRepository, UserRepository},
+    repo::{AuthRepository, PgRepository},
     service::AuthService,
 };
 
@@ -15,7 +15,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(webauthn: Webauthn, db: Pool) -> Self {
-        let user_repo: Arc<dyn AuthRepository> = Arc::new(UserRepository::new(db.clone()));
+        let user_repo: Arc<dyn AuthRepository> = Arc::new(PgRepository::new(db.clone()));
         let auth_service = Arc::new(AuthService::new(webauthn, user_repo));
         Self {
             auth_service: auth_service,
