@@ -1,6 +1,7 @@
-use axum::{Router, routing::get};
+use axum::{Router, routing::post};
 use rs_passkey_auth::{
     app::{AppError, AppState},
+    auth::handler,
     config::{postgres::DbConfig, webauthn::WebAuthnConfig},
 };
 
@@ -16,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState::new(webauthn, db_pool);
 
     let app = Router::new()
-        .route("/", get(|| async { "Hello World" }))
+        .route("/auth/register/begin", post(handler::begin_register))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;

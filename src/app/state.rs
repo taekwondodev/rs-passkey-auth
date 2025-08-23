@@ -8,22 +8,19 @@ use crate::auth::{
     service::AuthService,
 };
 
-#[derive(Clone)]
 pub struct AppState {
     pub auth_service: Arc<AuthService>,
 }
 
 impl AppState {
-    pub fn new(webauthn: Webauthn, db: Pool) -> Self {
+    pub fn new(webauthn: Webauthn, db: Pool) -> Arc<Self> {
         let user_repo: Arc<dyn AuthRepository> = Arc::new(PgRepository::new(db.clone()));
         let auth_service = Arc::new(AuthService::new(webauthn, user_repo));
-        Self {
-            auth_service: auth_service,
-        }
+        Arc::new(Self { auth_service })
     }
 
     #[cfg(test)]
-    pub fn new_for_testing(auth_service: Arc<AuthService>) -> Self {
-        Self { auth_service }
+    pub fn new_for_testing(auth_service: Arc<AuthService>) -> Arc<Self> {
+        Arc::new(Self { auth_service })
     }
 }

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use deadpool_postgres::Pool;
 use uuid::Uuid;
 
@@ -10,37 +10,35 @@ use crate::{
 
 #[async_trait]
 pub trait AuthRepository: Send + Sync {
-    async fn create_user(&self, username: String, role: Option<String>) -> Result<User, AppError>;
-    async fn get_user_by_username(&self, username: String) -> Result<User, AppError>;
-    async fn activate_user(&self, username: String) -> Result<(), AppError>;
+    async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError>;
+    async fn get_user_by_username(&self, username: &str) -> Result<User, AppError>;
+    async fn activate_user(&self, username: &str) -> Result<(), AppError>;
     async fn create_webauthn_session(
         &self,
-        id: Uuid,
         user_id: Uuid,
         data: serde_json::Value,
-        purpose: String,
-        expires_at: DateTime<Utc>,
-    ) -> Result<(), AppError>;
+        purpose: &str,
+    ) -> Result<Uuid, AppError>;
     async fn get_webauthn_session(
         &self,
         id: Uuid,
-        purpose: String,
+        purpose: &str,
     ) -> Result<WebAuthnSession, AppError>;
     async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError>;
     async fn create_credential(
         &self,
-        id: Vec<u8>,
+        id: &[u8],
         user_id: Uuid,
-        public_key: Vec<u8>,
+        public_key: &[u8],
         sign_count: i64,
-        transports: Option<Vec<String>>,
+        transports: Option<&[String]>,
         aaguid: Option<Uuid>,
-        attestation_format: Option<String>,
+        attestation_format: Option<&str>,
         backup_eligible: bool,
         backup_state: bool,
     ) -> Result<(), AppError>;
     async fn get_credential_by_user(&self, user_id: Uuid) -> Result<Vec<Credential>, AppError>;
-    async fn update_credential(&self, id: Vec<u8>, sign_count: i64) -> Result<(), AppError>;
+    async fn update_credential(&self, id: &[u8], sign_count: i64) -> Result<(), AppError>;
 }
 
 pub struct PgRepository {
@@ -94,7 +92,7 @@ impl PgRepository {
 
 #[async_trait]
 impl AuthRepository for PgRepository {
-    async fn create_user(&self, username: String, role: Option<String>) -> Result<User, AppError> {
+    async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError> {
         let client = &self.db.get().await?;
 
         let row = if let Some(i) = role {
@@ -116,17 +114,19 @@ impl AuthRepository for PgRepository {
         Self::row_to_user(&row)
     }
 
-    async fn get_user_by_username(&self, username: String) -> Result<User, AppError> {
+    async fn get_user_by_username(&self, username: &str) -> Result<User, AppError> {
         let client = &self.db.get().await?;
 
-        let row = client
-            .query_one("SELECT * FROM users WHERE username = $1", &[&username])
-            .await?;
-
-        Self::row_to_user(&row)
+        match client
+            .query_opt("SELECT * FROM users WHERE username = $1", &[&username])
+            .await?
+        {
+            Some(row) => Self::row_to_user(&row),
+            None => Err(AppError::NotFound(format!("Username not found"))),
+        }
     }
 
-    async fn activate_user(&self, username: String) -> Result<(), AppError> {
+    async fn activate_user(&self, username: &str) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client
@@ -141,39 +141,39 @@ impl AuthRepository for PgRepository {
 
     async fn create_webauthn_session(
         &self,
-        id: Uuid,
         user_id: Uuid,
         data: serde_json::Value,
-        purpose: String,
-        expires_at: DateTime<Utc>,
-    ) -> Result<(), AppError> {
+        purpose: &str,
+    ) -> Result<Uuid, AppError> {
         let client = &self.db.get().await?;
+        let expire_at = Utc::now() + chrono::Duration::minutes(30);
 
-        client
-                .execute(
-                    "INSERT INTO webauthn_sessions (id, user_id, data, purpose, expires_at) VALUES ($1, $2, $3, $4, $5)",
-                    &[&id, &user_id, &data, &purpose, &expires_at],
-                )
-                .await?;
+        let row = client.query_one(
+                "INSERT INTO webauthn_sessions (user_id, data, purpose, expires_at) VALUES ($1, $2, $3, $4)",
+                &[&user_id, &data, &purpose, &expire_at],
+            )
+            .await?;
 
-        Ok(())
+        Ok(row.get("id"))
     }
 
     async fn get_webauthn_session(
         &self,
         id: Uuid,
-        purpose: String,
+        purpose: &str,
     ) -> Result<WebAuthnSession, AppError> {
         let client = &self.db.get().await?;
 
-        let row = client
-            .query_one(
+        match client
+            .query_opt(
                 "SELECT * FROM webauthn_sessions WHERE id = $1 AND purpose = $2",
                 &[&id, &purpose],
             )
-            .await?;
-
-        Self::row_to_webauthn_session(&row)
+            .await?
+        {
+            Some(row) => Self::row_to_webauthn_session(&row),
+            None => Err(AppError::NotFound(format!("Session not found"))),
+        }
     }
 
     async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError> {
@@ -188,13 +188,13 @@ impl AuthRepository for PgRepository {
 
     async fn create_credential(
         &self,
-        id: Vec<u8>,
+        id: &[u8],
         user_id: Uuid,
-        public_key: Vec<u8>,
+        public_key: &[u8],
         sign_count: i64,
-        transports: Option<Vec<String>>,
+        transports: Option<&[String]>,
         aaguid: Option<Uuid>,
-        attestation_format: Option<String>,
+        attestation_format: Option<&str>,
         backup_eligible: bool,
         backup_state: bool,
     ) -> Result<(), AppError> {
@@ -225,7 +225,7 @@ impl AuthRepository for PgRepository {
         Ok(credentials)
     }
 
-    async fn update_credential(&self, id: Vec<u8>, sign_count: i64) -> Result<(), AppError> {
+    async fn update_credential(&self, id: &[u8], sign_count: i64) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client

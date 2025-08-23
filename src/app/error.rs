@@ -12,6 +12,8 @@ pub enum AppError {
     WebAuthnCreation(String),
     WebAuthnOperation(String),
     ValidationError(String),
+    NotFound(String),
+    AlreadyExists(String),
 }
 
 impl fmt::Display for AppError {
@@ -24,6 +26,8 @@ impl fmt::Display for AppError {
             AppError::WebAuthnCreation(msg) => write!(f, "WebAuthn creation error: {}", msg),
             AppError::WebAuthnOperation(msg) => write!(f, "WebAuthn operation error: {}", msg),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
+            AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
+            AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
         }
     }
 }
@@ -53,6 +57,10 @@ impl IntoResponse for AppError {
                 "validation_error",
                 self.to_string(),
             ),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
+            AppError::AlreadyExists(_) => {
+                (StatusCode::CONFLICT, "already_exists", self.to_string())
+            }
         };
 
         let body = Json(json!({

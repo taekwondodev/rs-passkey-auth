@@ -15,7 +15,7 @@ CREATE TABLE credentials (
 CREATE INDEX idx_credentials_user_id ON credentials(user_id);
 
 CREATE TABLE webauthn_sessions (
-    id UUID PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     data JSONB NOT NULL,
     purpose TEXT NOT NULL CHECK (purpose IN ('registration', 'login')),
