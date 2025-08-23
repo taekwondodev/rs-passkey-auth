@@ -24,3 +24,16 @@ CREATE TABLE webauthn_sessions (
 );
 
 CREATE INDEX idx_webauthn_sessions_id_purpose ON webauthn_sessions(id, purpose);
+
+CREATE OR REPLACE FUNCTION update_last_used()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_used_at = NOW;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_last_used
+BEFORE UPDATE ON credentials
+FOR EACH ROW
+EXECUTE FUNCTION update_last_used();
