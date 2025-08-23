@@ -11,6 +11,7 @@ pub enum AppError {
     ConfigInvalid(String),
     WebAuthnCreation(String),
     WebAuthnOperation(String),
+    InvalidUuid(String),
     ValidationError(String),
     NotFound(String),
     AlreadyExists(String),
@@ -25,6 +26,7 @@ impl fmt::Display for AppError {
             AppError::ConfigInvalid(msg) => write!(f, "Invalid configuration: {}", msg),
             AppError::WebAuthnCreation(msg) => write!(f, "WebAuthn creation error: {}", msg),
             AppError::WebAuthnOperation(msg) => write!(f, "WebAuthn operation error: {}", msg),
+            AppError::InvalidUuid(msg) => write!(f, "Invalid UUID: {}", msg),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
@@ -52,6 +54,9 @@ impl IntoResponse for AppError {
                 "webauthn_error",
                 "WebAuthn error occurred".to_string(),
             ),
+            AppError::InvalidUuid(_) => {
+                (StatusCode::UNAUTHORIZED, "invalid_uuid", self.to_string())
+            }
             AppError::ValidationError(_) => (
                 StatusCode::BAD_REQUEST,
                 "validation_error",
@@ -89,5 +94,17 @@ impl From<deadpool_postgres::PoolError> for AppError {
 impl From<tokio_postgres::Error> for AppError {
     fn from(value: tokio_postgres::Error) -> Self {
         AppError::DatabaseOperation(value.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(value: std::io::Error) -> Self {
+        AppError::ConfigInvalid(value.to_string())
+    }
+}
+
+impl From<uuid::Error> for AppError {
+    fn from(value: uuid::Error) -> Self {
+        AppError::InvalidUuid(value.to_string())
     }
 }

@@ -7,6 +7,11 @@ pub struct BeginResponse {
 }
 
 #[derive(Debug, Serialize)]
+pub struct MessageResponse {
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct TokenResponse {
     pub message: String,
     pub access_token: String,

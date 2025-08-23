@@ -6,7 +6,7 @@ use crate::{
     app::{AppError, AppState},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
-        response::{BeginResponse, TokenResponse},
+        response::{BeginResponse, MessageResponse, TokenResponse},
     },
 };
 
@@ -19,15 +19,15 @@ pub async fn begin_register(
 }
 
 pub async fn finish_register(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(request): Json<FinishRequest>,
-) -> Result<Json<TokenResponse>, AppError> {
-    // TODO: Implementare finish_register
-    todo!("Implement finish_register")
+) -> Result<Json<MessageResponse>, AppError> {
+    let response = state.auth_service.finish_register(request).await?;
+    Ok(Json(response))
 }
 
 pub async fn begin_login(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(request): Json<BeginRequest>,
 ) -> Result<Json<BeginResponse>, AppError> {
     // TODO: Implementare begin_authentication
@@ -35,7 +35,7 @@ pub async fn begin_login(
 }
 
 pub async fn finish_login(
-    State(state): State<AppState>,
+    State(state): State<Arc<AppState>>,
     Json(request): Json<FinishRequest>,
 ) -> Result<Json<TokenResponse>, AppError> {
     // TODO: Implementare finish_authentication

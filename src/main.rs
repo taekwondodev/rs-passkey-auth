@@ -6,7 +6,7 @@ use rs_passkey_auth::{
 };
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), AppError> {
     let db_config = DbConfig::from_env()?;
     let db_pool = db_config.create_pool()?;
     let _conn = db_pool.get().await.map_err(AppError::from)?;
@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))
+        .route("/auth/register/finish", post(handler::finish_register))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
