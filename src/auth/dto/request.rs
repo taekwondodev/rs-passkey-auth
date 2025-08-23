@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct BeginRequest {
@@ -62,16 +62,4 @@ fn validate_credentials(credentials: &serde_json::Value) -> Result<(), &'static 
     }
 
     Ok(())
-}
-
-#[derive(Debug, Serialize)]
-pub struct BeginResponse {
-    pub options: serde_json::Value,
-    pub session_id: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct TokenResponse {
-    pub message: String,
-    pub access_token: String,
 }
