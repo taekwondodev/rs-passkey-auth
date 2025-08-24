@@ -22,3 +22,6 @@ webauthn-rs = { version = "0.5.2", features = [
 ] }
 async-trait = "0.1.89"
 url = "2.5.6"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19" }
+tower-http = { version = "0.6.6", features = ["trace"] }
