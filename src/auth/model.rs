@@ -17,8 +17,7 @@ pub struct User {
 pub struct Credential {
     pub id: Vec<u8>,
     pub user_id: Uuid,
-    pub public_key: Vec<u8>,
-    pub sign_count: i64,
+    pub passkey: webauthn_rs::prelude::Passkey,
     pub created_at: DateTime<Utc>,
     pub last_used_at: Option<DateTime<Utc>>,
 }

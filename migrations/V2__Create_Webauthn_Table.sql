@@ -1,8 +1,7 @@
 CREATE TABLE credentials (
     id BYTEA PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    public_key BYTEA NOT NULL,
-    sign_count BIGINT NOT NULL,
+    passkey JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     last_used_at TIMESTAMP WITH TIME ZONE
 );

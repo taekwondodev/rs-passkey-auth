@@ -30,8 +30,8 @@ pub async fn begin_login(
     State(state): State<Arc<AppState>>,
     Json(request): Json<BeginRequest>,
 ) -> Result<Json<BeginResponse>, AppError> {
-    // TODO: Implementare begin_authentication
-    todo!("Implement begin_authentication")
+    let response = state.auth_service.begin_login(request).await?;
+    Ok(Json(response))
 }
 
 pub async fn finish_login(

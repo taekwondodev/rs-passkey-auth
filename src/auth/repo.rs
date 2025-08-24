@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use crate::{
     app::AppError,
-    auth::model::{Credential, User, WebAuthnSession},
+    auth::model::{User, WebAuthnSession},
 };
 
 #[async_trait]
@@ -27,13 +27,13 @@ pub trait AuthRepository: Send + Sync {
     async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError>;
     async fn create_credential(
         &self,
-        id: &[u8],
         user_id: Uuid,
-        public_key: &[u8],
-        sign_count: i64,
+        passkey: &webauthn_rs::prelude::Passkey,
     ) -> Result<(), AppError>;
-    async fn get_credential_by_user(&self, user_id: Uuid) -> Result<Vec<Credential>, AppError>;
-    async fn update_credential(&self, id: &[u8], sign_count: i64) -> Result<(), AppError>;
+    async fn get_credential_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError>;
 }
 
 pub struct PgRepository {
@@ -65,17 +65,6 @@ impl PgRepository {
             purpose: row.try_get("purpose")?,
             created_at: row.try_get("created_at")?,
             expires_at: row.try_get("expires_at")?,
-        })
-    }
-
-    fn row_to_credential(row: &tokio_postgres::Row) -> Result<Credential, AppError> {
-        Ok(Credential {
-            id: row.try_get("id")?,
-            user_id: row.try_get("user_id")?,
-            public_key: row.try_get("public_key")?,
-            sign_count: row.try_get("sign_count")?,
-            created_at: row.try_get("created_at")?,
-            last_used_at: row.try_get("last_used_at")?,
         })
     }
 }
@@ -178,48 +167,47 @@ impl AuthRepository for PgRepository {
 
     async fn create_credential(
         &self,
-        id: &[u8],
         user_id: Uuid,
-        public_key: &[u8],
-        sign_count: i64,
+        passkey: &webauthn_rs::prelude::Passkey,
     ) -> Result<(), AppError> {
         let client = &self.db.get().await?;
-
-        client
-                .execute(
-                    "INSERT INTO credentials (id, user_id, public_key, sign_count) VALUES ($1, $2, $3, $4)",
-                    &[&id, &user_id, &public_key, &sign_count],
-                )
-                .await?;
-
-        Ok(())
-    }
-
-    async fn get_credential_by_user(&self, user_id: Uuid) -> Result<Vec<Credential>, AppError> {
-        let client = &self.db.get().await?;
-
-        let rows = client
-            .query("SELECT * FROM credentials WHERE user_id = $1", &[&user_id])
-            .await?;
-
-        let mut credentials = Vec::new();
-        for row in rows {
-            credentials.push(Self::row_to_credential(&row)?);
-        }
-
-        Ok(credentials)
-    }
-
-    async fn update_credential(&self, id: &[u8], sign_count: i64) -> Result<(), AppError> {
-        let client = &self.db.get().await?;
+        let passkey_json = serde_json::to_value(passkey).map_err(|e| {
+            AppError::WebAuthnOperation(format!("Failed to serialize passkey: {:?}", e))
+        })?;
 
         client
             .execute(
-                "UPDATE credentials SET sign_count = $2 WHERE id = $1",
-                &[&id, &sign_count],
+                "INSERT INTO credentials (id, user_id, passkey) VALUES ($1, $2, $3)",
+                &[&passkey.cred_id().as_slice(), &user_id, &passkey_json],
             )
             .await?;
 
         Ok(())
+    }
+
+    async fn get_credential_by_user(
+        &self,
+        user_id: Uuid,
+    ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError> {
+        let client = &self.db.get().await?;
+
+        let rows = client
+            .query(
+                "SELECT passkey FROM credentials WHERE user_id = $1",
+                &[&user_id],
+            )
+            .await?;
+
+        let mut passkeys = Vec::new();
+        for row in rows {
+            let passkey_json: serde_json::Value = row.try_get("passkey")?;
+            let passkey: webauthn_rs::prelude::Passkey = serde_json::from_value(passkey_json)
+                .map_err(|e| {
+                    AppError::WebAuthnOperation(format!("Failed to deserialize passkey: {:?}", e))
+                })?;
+            passkeys.push(passkey);
+        }
+
+        Ok(passkeys)
     }
 }
