@@ -19,6 +19,8 @@ async fn main() -> Result<(), AppError> {
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))
         .route("/auth/register/finish", post(handler::finish_register))
+        .route("auth/login/begin", post(handler::begin_login))
+        .route("auth/login/finish", post(handler::finish_login))
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;

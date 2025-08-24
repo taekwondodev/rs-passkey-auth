@@ -3,7 +3,10 @@ use std::sync::Arc;
 use uuid::Uuid;
 use webauthn_rs::{
     Webauthn,
-    prelude::{PasskeyRegistration, RegisterPublicKeyCredential},
+    prelude::{
+        PasskeyAuthentication, PasskeyRegistration, PublicKeyCredential,
+        RegisterPublicKeyCredential,
+    },
 };
 
 use crate::{
@@ -132,6 +135,41 @@ impl AuthService {
         Ok(BeginResponse {
             options: opts,
             session_id: session_id.to_string(),
+        })
+    }
+
+    pub async fn finish_login(&self, req: FinishRequest) -> Result<MessageResponse, AppError> {
+        req.validate()?;
+
+        let session_id = Uuid::try_parse(&req.session_id)?;
+        // user non lo elimino, mi serve per i token
+        let user = self.auth_repo.get_user_by_username(&req.username).await?;
+        let session = self
+            .auth_repo
+            .get_webauthn_session(session_id, "login")
+            .await?;
+        let passkey_authentication: PasskeyAuthentication = serde_json::from_value(session.data)
+            .map_err(|e| {
+                AppError::WebAuthnOperation(format!("Failed to deserialize session data: {:?}", e))
+            })?;
+        let credentials: PublicKeyCredential =
+            serde_json::from_value(req.credentials).map_err(|e| {
+                AppError::WebAuthnOperation(format!("Failed to deserialize credentials: {:?}", e))
+            })?;
+        let result = self
+            .webauthn
+            .finish_passkey_authentication(&credentials, &passkey_authentication)
+            .map_err(|e| {
+                AppError::WebAuthnOperation(format!("Failed to finish authentication: {:?}", e))
+            })?;
+        if result.needs_update() {
+            self.auth_repo
+                .update_credential(result.cred_id(), result.counter())
+                .await?;
+        }
+        self.auth_repo.delete_webauthn_session(session_id).await?;
+        Ok(MessageResponse {
+            message: "Authentication successfully".to_string(),
         })
     }
 }

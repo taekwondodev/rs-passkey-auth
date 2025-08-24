@@ -38,7 +38,7 @@ impl FinishRequest {
 }
 
 #[inline]
-fn validate_username(username: &String) -> Result<(), AppError> {
+fn validate_username(username: &str) -> Result<(), AppError> {
     if username.is_empty() {
         return Err(AppError::ValidationError(
             "Username cannot be empty".to_string(),

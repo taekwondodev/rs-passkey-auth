@@ -34,6 +34,7 @@ pub trait AuthRepository: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError>;
+    async fn update_credential(&self, cred_id: &[u8], new_counter: u32) -> Result<(), AppError>;
 }
 
 pub struct PgRepository {
@@ -209,5 +210,20 @@ impl AuthRepository for PgRepository {
         }
 
         Ok(passkeys)
+    }
+
+    async fn update_credential(&self, cred_id: &[u8], new_counter: u32) -> Result<(), AppError> {
+        let client = &self.db.get().await?;
+
+        client
+            .execute(
+                "UPDATE credentials
+                    SET passkey = jsonb_set(passkey, '{counter}', $1::text::jsonb)
+                    WHERE id = $2",
+                &[&(new_counter as i64), &cred_id],
+            )
+            .await?;
+
+        Ok(())
     }
 }
