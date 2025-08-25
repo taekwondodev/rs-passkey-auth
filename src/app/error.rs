@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self};
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
 use serde_json::json;
@@ -11,6 +11,8 @@ pub enum AppError {
     ConfigInvalid(String),
     WebAuthnCreation(String),
     WebAuthnOperation(String),
+    JWTSignatureInvalid(String),
+    JWTExpired(String),
     InvalidUuid(String),
     ValidationError(String),
     NotFound(String),
@@ -26,6 +28,8 @@ impl fmt::Display for AppError {
             AppError::ConfigInvalid(msg) => write!(f, "Invalid configuration: {}", msg),
             AppError::WebAuthnCreation(msg) => write!(f, "WebAuthn creation error: {}", msg),
             AppError::WebAuthnOperation(msg) => write!(f, "WebAuthn operation error: {}", msg),
+            AppError::JWTSignatureInvalid(msg) => write!(f, "JWT Signature is invalid: {}", msg),
+            AppError::JWTExpired(msg) => write!(f, "JWT has expired: {}", msg),
             AppError::InvalidUuid(msg) => write!(f, "Invalid UUID: {}", msg),
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
@@ -54,6 +58,10 @@ impl IntoResponse for AppError {
                 "webauthn_error",
                 "WebAuthn error occurred".to_string(),
             ),
+            AppError::JWTSignatureInvalid(_) => {
+                (StatusCode::UNAUTHORIZED, "jwt_invalid", self.to_string())
+            }
+            AppError::JWTExpired(_) => (StatusCode::UNAUTHORIZED, "jwt_expired", self.to_string()),
             AppError::InvalidUuid(_) => {
                 (StatusCode::UNAUTHORIZED, "invalid_uuid", self.to_string())
             }

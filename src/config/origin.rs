@@ -6,6 +6,13 @@ use url::Url;
 
 use crate::app::AppError;
 
+const ALLOWED_METHODS: [Method; 3] = [Method::GET, Method::POST, Method::OPTIONS];
+const ALLOWED_HEADERS: [http::HeaderName; 2] =
+    [http::header::CONTENT_TYPE, http::header::AUTHORIZATION];
+const ALLOW_CREDENTIALS: bool = true;
+const MAX_AGE: std::time::Duration = std::time::Duration::from_secs(86400);
+const VARY_HEADERS: [http::HeaderName; 1] = [http::header::ORIGIN];
+
 #[derive(Debug, Clone)]
 pub struct OriginConfig {
     pub frontend_origin: String,
@@ -59,11 +66,11 @@ impl OriginConfig {
 
         let cors = CorsLayer::new()
             .allow_origin(origin)
-            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
-            .allow_headers([http::header::CONTENT_TYPE, http::header::AUTHORIZATION])
-            .allow_credentials(true)
-            .max_age(std::time::Duration::from_secs(86400))
-            .vary([http::header::ORIGIN]);
+            .allow_methods(ALLOWED_METHODS)
+            .allow_headers(ALLOWED_HEADERS)
+            .allow_credentials(ALLOW_CREDENTIALS)
+            .max_age(MAX_AGE)
+            .vary(VARY_HEADERS);
 
         Ok(cors)
     }
