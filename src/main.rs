@@ -25,7 +25,7 @@ async fn main() -> Result<(), AppError> {
 
     let jwt = JwtService::from_env()?;
 
-    let state = AppState::new(webauthn, db_pool, jwt);
+    let state = AppState::new(webauthn, db_pool, jwt, &origin_config);
 
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))

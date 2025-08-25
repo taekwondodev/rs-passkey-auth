@@ -17,6 +17,7 @@ pub enum AppError {
     ValidationError(String),
     NotFound(String),
     AlreadyExists(String),
+    Unauthorized(String),
 }
 
 impl fmt::Display for AppError {
@@ -34,6 +35,7 @@ impl fmt::Display for AppError {
             AppError::ValidationError(msg) => write!(f, "Validation error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
+            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
         }
     }
 }
@@ -73,6 +75,9 @@ impl IntoResponse for AppError {
             AppError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
             AppError::AlreadyExists(_) => {
                 (StatusCode::CONFLICT, "already_exists", self.to_string())
+            }
+            AppError::Unauthorized(_) => {
+                (StatusCode::UNAUTHORIZED, "unauthorized", self.to_string())
             }
         };
 

@@ -153,7 +153,10 @@ impl AuthService {
         })
     }
 
-    pub async fn finish_login(&self, req: FinishRequest) -> Result<TokenResponse, AppError> {
+    pub async fn finish_login(
+        &self,
+        req: FinishRequest,
+    ) -> Result<(TokenResponse, String), AppError> {
         req.validate()?;
 
         let session_id = Uuid::try_parse(&req.session_id)?;
@@ -192,11 +195,12 @@ impl AuthService {
             .jwt_service
             .generate_token_pair(user.id, &req.username, user.role)?;
 
-        // devo aggiungere il refresh nei cookie
-
-        Ok(TokenResponse {
-            message: "Login completed successfully".to_string(),
-            access_token: token_pair.access_token,
-        })
+        Ok((
+            TokenResponse {
+                message: "Login completed successfully".to_string(),
+                access_token: token_pair.access_token,
+            },
+            token_pair.refresh_token,
+        ))
     }
 }
