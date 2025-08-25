@@ -6,7 +6,7 @@ use crate::{
     app::{AppError, AppState},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
-        response::{BeginResponse, MessageResponse},
+        response::{BeginResponse, MessageResponse, TokenResponse},
     },
 };
 
@@ -37,7 +37,7 @@ pub async fn begin_login(
 pub async fn finish_login(
     State(state): State<Arc<AppState>>,
     Json(request): Json<FinishRequest>,
-) -> Result<Json<MessageResponse>, AppError> {
+) -> Result<Json<TokenResponse>, AppError> {
     let response = state.auth_service.finish_login(request).await?;
     Ok(Json(response))
 }

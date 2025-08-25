@@ -3,9 +3,12 @@ use std::sync::Arc;
 use deadpool_postgres::Pool;
 use webauthn_rs::Webauthn;
 
-use crate::auth::{
-    repo::{AuthRepository, PgRepository},
-    service::AuthService,
+use crate::{
+    auth::{
+        repo::{AuthRepository, PgRepository},
+        service::AuthService,
+    },
+    utils::jwt::JwtService,
 };
 
 pub struct AppState {
@@ -13,9 +16,10 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(webauthn: Webauthn, db: Pool) -> Arc<Self> {
+    pub fn new(webauthn: Webauthn, db: Pool, jwt: JwtService) -> Arc<Self> {
         let user_repo: Arc<dyn AuthRepository> = Arc::new(PgRepository::new(db.clone()));
-        let auth_service = Arc::new(AuthService::new(webauthn, user_repo));
+        let jwt_service = Arc::new(jwt);
+        let auth_service = Arc::new(AuthService::new(webauthn, user_repo, jwt_service));
         Arc::new(Self { auth_service })
     }
 

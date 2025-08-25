@@ -14,22 +14,29 @@ use crate::{
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
-            response::{BeginResponse, MessageResponse},
+            response::{BeginResponse, MessageResponse, TokenResponse},
         },
         repo::AuthRepository,
     },
+    utils::jwt::JwtService,
 };
 
 pub struct AuthService {
     webauthn: Webauthn,
     auth_repo: Arc<dyn AuthRepository>,
+    jwt_service: Arc<JwtService>,
 }
 
 impl AuthService {
-    pub fn new(webauthn: Webauthn, auth_repo: Arc<dyn AuthRepository>) -> Self {
+    pub fn new(
+        webauthn: Webauthn,
+        auth_repo: Arc<dyn AuthRepository>,
+        jwt_service: Arc<JwtService>,
+    ) -> Self {
         Self {
             webauthn: webauthn,
             auth_repo: auth_repo,
+            jwt_service: jwt_service,
         }
     }
 
@@ -59,18 +66,18 @@ impl AuthService {
                 ))
             })?;
 
+        // vedo se posso fare session_data e opts in parallelo
         let session_data = serde_json::to_value(passkey_registration).map_err(|e| {
             AppError::WebAuthnOperation(format!("Failed to serialize session data: {:?}", e))
+        })?;
+        let opts = serde_json::to_value(ccr).map_err(|e| {
+            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
         })?;
 
         let session_id = self
             .auth_repo
             .create_webauthn_session(user.id, session_data, "registration")
             .await?;
-
-        let opts = serde_json::to_value(ccr).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
-        })?;
 
         Ok(BeginResponse {
             options: opts,
@@ -87,6 +94,8 @@ impl AuthService {
             .auth_repo
             .get_webauthn_session(session_id, "registration")
             .await?;
+
+        // vedo se posso farli in parallelo
         let passkey_registration: PasskeyRegistration = serde_json::from_value(session.data)
             .map_err(|e| {
                 AppError::WebAuthnOperation(format!("Failed to deserialize session data: {:?}", e))
@@ -95,6 +104,7 @@ impl AuthService {
             .map_err(|e| {
                 AppError::WebAuthnOperation(format!("Failed to deserialize credentials: {:?}", e))
             })?;
+
         let passkey = self
             .webauthn
             .finish_passkey_registration(&credentials, &passkey_registration)
@@ -105,8 +115,10 @@ impl AuthService {
                 ))
             })?;
         self.auth_repo.create_credential(user.id, &passkey).await?;
-        self.auth_repo.delete_webauthn_session(session_id).await?;
         self.auth_repo.activate_user(&req.username).await?;
+
+        // questo in un thread a parte
+        self.auth_repo.delete_webauthn_session(session_id).await?;
         Ok(MessageResponse {
             message: "Registration completed successfully".to_string(),
         })
@@ -121,16 +133,19 @@ impl AuthService {
             .webauthn
             .start_passkey_authentication(&passkey)
             .map_err(|e| AppError::WebAuthnOperation(format!("Failed to start login: {:?}", e)))?;
+
+        // vedo se posso farli in parallelo
         let session_data = serde_json::to_value(passkey_authentication).map_err(|e| {
             AppError::WebAuthnOperation(format!("Failed to serialize session data: {:?}", e))
         })?;
+        let opts = serde_json::to_value(rcr).map_err(|e| {
+            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
+        })?;
+
         let session_id = self
             .auth_repo
             .create_webauthn_session(user.id, session_data, "login")
             .await?;
-        let opts = serde_json::to_value(rcr).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
-        })?;
 
         Ok(BeginResponse {
             options: opts,
@@ -138,16 +153,17 @@ impl AuthService {
         })
     }
 
-    pub async fn finish_login(&self, req: FinishRequest) -> Result<MessageResponse, AppError> {
+    pub async fn finish_login(&self, req: FinishRequest) -> Result<TokenResponse, AppError> {
         req.validate()?;
 
         let session_id = Uuid::try_parse(&req.session_id)?;
-        // user non lo elimino, mi serve per i token
         let user = self.auth_repo.get_user_by_username(&req.username).await?;
         let session = self
             .auth_repo
             .get_webauthn_session(session_id, "login")
             .await?;
+
+        // vedo se posso farli in parallelo
         let passkey_authentication: PasskeyAuthentication = serde_json::from_value(session.data)
             .map_err(|e| {
                 AppError::WebAuthnOperation(format!("Failed to deserialize session data: {:?}", e))
@@ -156,6 +172,7 @@ impl AuthService {
             serde_json::from_value(req.credentials).map_err(|e| {
                 AppError::WebAuthnOperation(format!("Failed to deserialize credentials: {:?}", e))
             })?;
+
         let result = self
             .webauthn
             .finish_passkey_authentication(&credentials, &passkey_authentication)
@@ -167,9 +184,19 @@ impl AuthService {
                 .update_credential(result.cred_id(), result.counter())
                 .await?;
         }
+
+        // in un altro thread
         self.auth_repo.delete_webauthn_session(session_id).await?;
-        Ok(MessageResponse {
-            message: "Authentication successfully".to_string(),
+
+        let token_pair = self
+            .jwt_service
+            .generate_token_pair(user.id, &req.username, user.role)?;
+
+        // devo aggiungere il refresh nei cookie
+
+        Ok(TokenResponse {
+            message: "Login completed successfully".to_string(),
+            access_token: token_pair.access_token,
         })
     }
 }

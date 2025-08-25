@@ -6,6 +6,7 @@ CREATE TABLE credentials (
     last_used_at TIMESTAMP WITH TIME ZONE
 );
 
+CREATE INDEX idx_credentials_id ON credentials(id);
 CREATE INDEX idx_credentials_user_id ON credentials(user_id);
 
 

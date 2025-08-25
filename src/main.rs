@@ -3,6 +3,7 @@ use rs_passkey_auth::{
     app::{AppError, AppState},
     auth::handler,
     config::{origin::OriginConfig, postgres::DbConfig, webauthn::WebAuthnConfig},
+    utils::jwt::JwtService,
 };
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -22,7 +23,9 @@ async fn main() -> Result<(), AppError> {
     let webauthn = webauthn_config.create_webauthn(&origin_config)?;
     let cors_layer = origin_config.create_cors_layer()?;
 
-    let state = AppState::new(webauthn, db_pool);
+    let jwt = JwtService::from_env()?;
+
+    let state = AppState::new(webauthn, db_pool, jwt);
 
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))
