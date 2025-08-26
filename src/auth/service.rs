@@ -16,6 +16,7 @@ use crate::{
             request::{BeginRequest, FinishRequest},
             response::{BeginResponse, MessageResponse, TokenResponse},
         },
+        model::WebAuthnSession,
         repo::AuthRepository,
     },
     utils::jwt::JwtService,
@@ -65,44 +66,33 @@ impl AuthService {
             None,
         )?;
 
-        // vedo se posso fare session_data e opts in parallelo
-        let session_data = serde_json::to_value(passkey_registration)?;
-        let opts = serde_json::to_value(ccr)?;
-
-        let session_id = self
-            .auth_repo
-            .create_webauthn_session(user.id, session_data, "registration")
-            .await?;
-
-        Ok(BeginResponse {
-            options: opts,
-            session_id: String::from(session_id),
-        })
+        let (session_data, opts) = self.prepare_session_data(passkey_registration, ccr).await?;
+        self.create_session_response(user.id, session_data, opts, "login")
+            .await
     }
 
     pub async fn finish_register(&self, req: FinishRequest) -> Result<MessageResponse, AppError> {
         req.validate()?;
 
-        let session_id = Uuid::try_parse(&req.session_id)?;
-        let user = self.auth_repo.get_user_by_username(&req.username).await?;
-        let session = self
-            .auth_repo
-            .get_webauthn_session(session_id, "registration")
+        let (session_id, user, session) = self
+            .get_user_and_session(&req.session_id, &req.username, "registration")
             .await?;
 
-        // vedo se posso farli in parallelo
-        let passkey_registration: PasskeyRegistration = serde_json::from_value(session.data)?;
-        let credentials: RegisterPublicKeyCredential = serde_json::from_value(req.credentials)?;
+        let (passkey_registration, credentials) = tokio::join!(
+            async { serde_json::from_value::<PasskeyRegistration>(session.data) },
+            async { serde_json::from_value::<RegisterPublicKeyCredential>(req.credentials) }
+        );
+        let passkey_registration = passkey_registration?;
+        let credentials = credentials?;
 
         let passkey = self
             .webauthn
             .finish_passkey_registration(&credentials, &passkey_registration)?;
 
         self.auth_repo.create_credential(user.id, &passkey).await?;
-        self.auth_repo.activate_user(&req.username).await?;
+        self.auth_repo.activate_user(&user.username).await?;
+        self.cleanup_session(session_id);
 
-        // questo in un thread a parte
-        self.auth_repo.delete_webauthn_session(session_id).await?;
         Ok(MessageResponse {
             message: String::from("Registration completed successfully"),
         })
@@ -115,19 +105,12 @@ impl AuthService {
         let passkey = self.auth_repo.get_credential_by_user(user.id).await?;
         let (rcr, passkey_authentication) = self.webauthn.start_passkey_authentication(&passkey)?;
 
-        // vedo se posso farli in parallelo
-        let session_data = serde_json::to_value(passkey_authentication)?;
-        let opts = serde_json::to_value(rcr)?;
-
-        let session_id = self
-            .auth_repo
-            .create_webauthn_session(user.id, session_data, "login")
+        let (session_data, opts) = self
+            .prepare_session_data(passkey_authentication, rcr)
             .await?;
 
-        Ok(BeginResponse {
-            options: opts,
-            session_id: String::from(session_id),
-        })
+        self.create_session_response(user.id, session_data, opts, "login")
+            .await
     }
 
     pub async fn finish_login(
@@ -136,16 +119,16 @@ impl AuthService {
     ) -> Result<(TokenResponse, String), AppError> {
         req.validate()?;
 
-        let session_id = Uuid::try_parse(&req.session_id)?;
-        let user = self.auth_repo.get_user_by_username(&req.username).await?;
-        let session = self
-            .auth_repo
-            .get_webauthn_session(session_id, "login")
+        let (session_id, user, session) = self
+            .get_user_and_session(&req.session_id, &req.username, "login")
             .await?;
 
-        // vedo se posso farli in parallelo
-        let passkey_authentication: PasskeyAuthentication = serde_json::from_value(session.data)?;
-        let credentials: PublicKeyCredential = serde_json::from_value(req.credentials)?;
+        let (passkey_authentication, credentials) = tokio::join!(
+            async { serde_json::from_value::<PasskeyAuthentication>(session.data) },
+            async { serde_json::from_value::<PublicKeyCredential>(req.credentials) }
+        );
+        let passkey_authentication = passkey_authentication?;
+        let credentials = credentials?;
 
         let result = self
             .webauthn
@@ -157,12 +140,11 @@ impl AuthService {
                 .await?;
         }
 
-        // in un altro thread
-        self.auth_repo.delete_webauthn_session(session_id).await?;
+        self.cleanup_session(session_id);
 
-        let token_pair = self
-            .jwt_service
-            .generate_token_pair(user.id, &req.username, user.role)?;
+        let token_pair =
+            self.jwt_service
+                .generate_token_pair(user.id, &user.username, user.role)?;
 
         Ok((
             TokenResponse {
@@ -171,5 +153,64 @@ impl AuthService {
             },
             token_pair.refresh_token,
         ))
+    }
+
+    async fn prepare_session_data<T, U>(
+        &self,
+        session_obj: T,
+        options_obj: U,
+    ) -> Result<(serde_json::Value, serde_json::Value), AppError>
+    where
+        T: serde::Serialize + Send,
+        U: serde::Serialize + Send,
+    {
+        let (session_data, opts) =
+            tokio::join!(async { serde_json::to_value(session_obj) }, async {
+                serde_json::to_value(options_obj)
+            });
+        Ok((session_data?, opts?))
+    }
+
+    async fn create_session_response(
+        &self,
+        user_id: Uuid,
+        session_data: serde_json::Value,
+        opts: serde_json::Value,
+        session_type: &str,
+    ) -> Result<BeginResponse, AppError> {
+        let session_id = self
+            .auth_repo
+            .create_webauthn_session(user_id, session_data, session_type)
+            .await?;
+
+        Ok(BeginResponse {
+            options: opts,
+            session_id: String::from(session_id),
+        })
+    }
+
+    async fn get_user_and_session(
+        &self,
+        session_id_str: &str,
+        username: &str,
+        session_type: &str,
+    ) -> Result<(Uuid, crate::auth::model::User, WebAuthnSession), AppError> {
+        let session_id = Uuid::try_parse(session_id_str)?;
+        let user = self.auth_repo.get_user_by_username(username).await?;
+        let session = self
+            .auth_repo
+            .get_webauthn_session(session_id, session_type)
+            .await?;
+
+        Ok((session_id, user, session))
+    }
+
+    fn cleanup_session(&self, session_id: Uuid) {
+        let auth_repo = Arc::clone(&self.auth_repo);
+        tokio::spawn(async move {
+            if let Err(e) = auth_repo.delete_webauthn_session(session_id).await {
+                tracing::warn!("Failed to delete webauthn session {}: {}", session_id, e);
+            }
+        });
     }
 }
