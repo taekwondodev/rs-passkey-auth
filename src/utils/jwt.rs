@@ -122,7 +122,7 @@ impl JwtService {
         let exp_iso = exp.to_rfc3339();
         let _user_id = user_id.to_string();
 
-        let token = if let Some(ref r) = role {
+        if let Some(ref r) = role {
             PasetoBuilder::<V4, Local>::default()
                 .set_claim(SubjectClaim::from(_user_id.as_str()))
                 .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
@@ -137,7 +137,6 @@ impl JwtService {
                 .set_claim(CustomClaim::try_from(("username", username)).unwrap())
                 .build(&key)
                 .unwrap()
-        };
-        token
+        }
     }
 }
