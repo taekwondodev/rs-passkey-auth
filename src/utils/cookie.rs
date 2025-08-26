@@ -28,7 +28,7 @@ impl CookieService {
             secure: is_https,
             same_site: Self::determine_same_site(is_https, is_local),
             domain: Self::determine_cookie_domain(&origin_config, is_local)?,
-            path: PATH.to_string(),
+            path: String::from(PATH),
             http_only: true,
             max_age: Duration::days(1),
             is_https,
@@ -45,8 +45,10 @@ impl CookieService {
         jar: &axum_extra::extract::CookieJar,
     ) -> Result<String, AppError> {
         jar.get(REFRESH_TOKEN_COOKIE_NAME)
-            .map(|cookie| cookie.value().to_string())
-            .ok_or_else(|| AppError::Unauthorized("Refresh token not found in cookies".to_string()))
+            .map(|cookie| String::from(cookie.value()))
+            .ok_or_else(|| {
+                AppError::Unauthorized(String::from("Refresh token not found in cookies"))
+            })
     }
 
     pub fn clear_refresh_token_cookie(&self) -> Cookie<'static> {
@@ -96,7 +98,7 @@ impl CookieService {
         let frontend_domain = origin_config
             .frontend_url
             .host_str()
-            .ok_or_else(|| AppError::ConfigInvalid("Frontend URL has no host".to_string()))?
+            .ok_or_else(|| AppError::ConfigInvalid(String::from("Frontend URL has no host")))?
             .to_string();
 
         let backend_domain = &origin_config.backend_domain;

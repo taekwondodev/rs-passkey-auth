@@ -30,7 +30,7 @@ impl OriginConfig {
         let backend_domain = backend_url
             .host_str()
             .ok_or_else(|| {
-                AppError::ConfigInvalid("URL_BACKEND must have a valid host".to_string())
+                AppError::ConfigInvalid(String::from("URL_BACKEND must have a valid host"))
             })?
             .to_string();
 
@@ -57,7 +57,7 @@ impl OriginConfig {
         let origin = self
             .frontend_origin
             .parse::<HeaderValue>()
-            .map_err(|_| AppError::ConfigInvalid("Invalid frontend URL for CORS".to_string()))?;
+            .map_err(|_| AppError::ConfigInvalid(String::from("Invalid frontend URL for CORS")))?;
 
         let cors = CorsLayer::new()
             .allow_origin(origin)

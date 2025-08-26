@@ -98,7 +98,7 @@ impl JwtService {
 
         let now = Utc::now().timestamp();
         if exp < now {
-            return Err(AppError::JWTExpired("Token has expired".to_string()));
+            return Err(AppError::JWTExpired(String::from("Token has expired")));
         }
 
         Ok(TokenClaims {
@@ -120,7 +120,7 @@ impl JwtService {
         let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.secret_key));
 
         let exp_iso = exp.to_rfc3339();
-        let _user_id = user_id.to_string();
+        let _user_id = String::from(user_id);
 
         if let Some(ref r) = role {
             PasetoBuilder::<V4, Local>::default()

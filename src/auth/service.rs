@@ -76,7 +76,7 @@ impl AuthService {
 
         Ok(BeginResponse {
             options: opts,
-            session_id: session_id.to_string(),
+            session_id: String::from(session_id),
         })
     }
 
@@ -104,7 +104,7 @@ impl AuthService {
         // questo in un thread a parte
         self.auth_repo.delete_webauthn_session(session_id).await?;
         Ok(MessageResponse {
-            message: "Registration completed successfully".to_string(),
+            message: String::from("Registration completed successfully"),
         })
     }
 
@@ -126,7 +126,7 @@ impl AuthService {
 
         Ok(BeginResponse {
             options: opts,
-            session_id: session_id.to_string(),
+            session_id: String::from(session_id),
         })
     }
 
@@ -166,7 +166,7 @@ impl AuthService {
 
         Ok((
             TokenResponse {
-                message: "Login completed successfully".to_string(),
+                message: String::from("Login completed successfully"),
                 access_token: token_pair.access_token,
             },
             token_pair.refresh_token,
