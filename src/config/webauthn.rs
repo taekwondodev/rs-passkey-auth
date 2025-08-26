@@ -10,22 +10,18 @@ pub struct WebAuthnConfig {
 
 impl WebAuthnConfig {
     pub fn from_env() -> Result<Self, AppError> {
-        let rp_name = env::var("WEBAUTHN_RP_NAME")
-            .map_err(|_| AppError::ConfigMissing("WEBAUTHN_RP_NAME".to_string()))?;
+        let rp_name = env::var("WEBAUTHN_RP_NAME")?;
 
         Ok(Self { rp_name })
     }
 
-    pub fn create_webauthn(&self, origin_config: &OriginConfig) -> Result<Webauthn, AppError> {
+    pub fn create_webauthn(&self, origin_config: &OriginConfig) -> Webauthn {
         let builder = WebauthnBuilder::new(&origin_config.rp_id(), &origin_config.rp_origin())
-            .map_err(|e| {
-                AppError::WebAuthnCreation(format!("Failed to create WebAuthnBuilder: {:?}", e))
-            })?;
+            .expect("Invalid Webauthn configuration");
 
-        let webauthn = builder.rp_name(&self.rp_name).build().map_err(|e| {
-            AppError::WebAuthnCreation(format!("Failed to build Webauthn: {:?}", e))
-        })?;
-
-        Ok(webauthn)
+        builder
+            .rp_name(&self.rp_name)
+            .build()
+            .expect("Invalid Webauthn configuration")
     }
 }

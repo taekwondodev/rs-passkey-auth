@@ -22,16 +22,11 @@ pub struct OriginConfig {
 
 impl OriginConfig {
     pub fn from_env() -> Result<Self, AppError> {
-        let frontend_origin = env::var("ORIGIN_FRONTEND")
-            .map_err(|_| AppError::ConfigMissing("ORIGIN_FRONTEND".to_string()))?;
-        let frontend_url = Url::parse(&frontend_origin).map_err(|_| {
-            AppError::ConfigInvalid("ORIGIN_FRONTEND is not a valid URL".to_string())
-        })?;
+        let frontend_origin = env::var("ORIGIN_FRONTEND")?;
+        let frontend_url = Url::parse(&frontend_origin)?;
 
-        let _backend_url = env::var("URL_BACKEND")
-            .map_err(|_| AppError::ConfigMissing("URL_BACKEND".to_string()))?;
-        let backend_url = Url::parse(&_backend_url)
-            .map_err(|_| AppError::ConfigInvalid("URL_BACKEND is not a valid URL".to_string()))?;
+        let _backend_url = env::var("URL_BACKEND")?;
+        let backend_url = Url::parse(&_backend_url)?;
         let backend_domain = backend_url
             .host_str()
             .ok_or_else(|| {

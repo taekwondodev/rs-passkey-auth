@@ -28,9 +28,9 @@ impl FinishRequest {
         validate_username(&self.username)?;
 
         if self.session_id.is_empty() {
-            return Err(AppError::ValidationError(
-                "Session ID cannot be empty".to_string(),
-            ));
+            return Err(AppError::ValidationError(String::from(
+                "Session ID cannot be empty",
+            )));
         }
 
         validate_credentials(&self.credentials)
@@ -40,14 +40,14 @@ impl FinishRequest {
 #[inline]
 fn validate_username(username: &str) -> Result<(), AppError> {
     if username.is_empty() {
-        return Err(AppError::ValidationError(
-            "Username cannot be empty".to_string(),
-        ));
+        return Err(AppError::ValidationError(String::from(
+            "Username cannot be empty",
+        )));
     }
     if username.len() < 3 {
-        return Err(AppError::ValidationError(
-            "Username must be at least 3 characters".to_string(),
-        ));
+        return Err(AppError::ValidationError(String::from(
+            "Username must be at least 3 characters",
+        )));
     }
 
     Ok(())
@@ -56,16 +56,22 @@ fn validate_username(username: &str) -> Result<(), AppError> {
 #[inline]
 fn validate_credentials(credentials: &serde_json::Value) -> Result<(), AppError> {
     if credentials.is_null() {
-        return Err(AppError::ValidationError("Invalid credentials".to_string()));
+        return Err(AppError::ValidationError(String::from(
+            "Invalid credentials",
+        )));
     }
 
     if !credentials.is_object() {
-        return Err(AppError::ValidationError("Invalid credentials".to_string()));
+        return Err(AppError::ValidationError(String::from(
+            "Invalid credentials",
+        )));
     }
 
     if let Some(obj) = credentials.as_object() {
         if obj.is_empty() {
-            return Err(AppError::ValidationError("Invalid credentials".to_string()));
+            return Err(AppError::ValidationError(String::from(
+                "Invalid credentials",
+            )));
         }
     }
 

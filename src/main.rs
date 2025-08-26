@@ -20,7 +20,7 @@ async fn main() -> Result<(), AppError> {
 
     let origin_config = OriginConfig::from_env()?;
     let webauthn_config = WebAuthnConfig::from_env()?;
-    let webauthn = webauthn_config.create_webauthn(&origin_config)?;
+    let webauthn = webauthn_config.create_webauthn(&origin_config);
     let cors_layer = origin_config.create_cors_layer()?;
 
     let jwt = JwtService::from_env()?;

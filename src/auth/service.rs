@@ -45,7 +45,9 @@ impl AuthService {
 
         match self.auth_repo.get_user_by_username(&req.username).await {
             Ok(_) => {
-                return Err(AppError::AlreadyExists(format!("Username already exists")));
+                return Err(AppError::AlreadyExists(String::from(
+                    "Username already exists",
+                )));
             }
             Err(AppError::NotFound(_)) => {}
             Err(e) => return Err(e),
@@ -56,23 +58,16 @@ impl AuthService {
             .create_user(&req.username, req.role.as_deref())
             .await?;
 
-        let (ccr, passkey_registration) = self
-            .webauthn
-            .start_passkey_registration(user.id, &req.username, &req.username, None)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!(
-                    "Failed to start passkey registration: {:?}",
-                    e
-                ))
-            })?;
+        let (ccr, passkey_registration) = self.webauthn.start_passkey_registration(
+            user.id,
+            &req.username,
+            &req.username,
+            None,
+        )?;
 
         // vedo se posso fare session_data e opts in parallelo
-        let session_data = serde_json::to_value(passkey_registration).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize session data: {:?}", e))
-        })?;
-        let opts = serde_json::to_value(ccr).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
-        })?;
+        let session_data = serde_json::to_value(passkey_registration)?;
+        let opts = serde_json::to_value(ccr)?;
 
         let session_id = self
             .auth_repo
@@ -96,24 +91,13 @@ impl AuthService {
             .await?;
 
         // vedo se posso farli in parallelo
-        let passkey_registration: PasskeyRegistration = serde_json::from_value(session.data)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!("Failed to deserialize session data: {:?}", e))
-            })?;
-        let credentials: RegisterPublicKeyCredential = serde_json::from_value(req.credentials)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!("Failed to deserialize credentials: {:?}", e))
-            })?;
+        let passkey_registration: PasskeyRegistration = serde_json::from_value(session.data)?;
+        let credentials: RegisterPublicKeyCredential = serde_json::from_value(req.credentials)?;
 
         let passkey = self
             .webauthn
-            .finish_passkey_registration(&credentials, &passkey_registration)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!(
-                    "Failed to finish passkey registration: {:?}",
-                    e
-                ))
-            })?;
+            .finish_passkey_registration(&credentials, &passkey_registration)?;
+
         self.auth_repo.create_credential(user.id, &passkey).await?;
         self.auth_repo.activate_user(&req.username).await?;
 
@@ -129,18 +113,11 @@ impl AuthService {
 
         let user = self.auth_repo.get_user_by_username(&req.username).await?;
         let passkey = self.auth_repo.get_credential_by_user(user.id).await?;
-        let (rcr, passkey_authentication) = self
-            .webauthn
-            .start_passkey_authentication(&passkey)
-            .map_err(|e| AppError::WebAuthnOperation(format!("Failed to start login: {:?}", e)))?;
+        let (rcr, passkey_authentication) = self.webauthn.start_passkey_authentication(&passkey)?;
 
         // vedo se posso farli in parallelo
-        let session_data = serde_json::to_value(passkey_authentication).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize session data: {:?}", e))
-        })?;
-        let opts = serde_json::to_value(rcr).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize options: {:?}", e))
-        })?;
+        let session_data = serde_json::to_value(passkey_authentication)?;
+        let opts = serde_json::to_value(rcr)?;
 
         let session_id = self
             .auth_repo
@@ -167,21 +144,13 @@ impl AuthService {
             .await?;
 
         // vedo se posso farli in parallelo
-        let passkey_authentication: PasskeyAuthentication = serde_json::from_value(session.data)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!("Failed to deserialize session data: {:?}", e))
-            })?;
-        let credentials: PublicKeyCredential =
-            serde_json::from_value(req.credentials).map_err(|e| {
-                AppError::WebAuthnOperation(format!("Failed to deserialize credentials: {:?}", e))
-            })?;
+        let passkey_authentication: PasskeyAuthentication = serde_json::from_value(session.data)?;
+        let credentials: PublicKeyCredential = serde_json::from_value(req.credentials)?;
 
         let result = self
             .webauthn
-            .finish_passkey_authentication(&credentials, &passkey_authentication)
-            .map_err(|e| {
-                AppError::WebAuthnOperation(format!("Failed to finish authentication: {:?}", e))
-            })?;
+            .finish_passkey_authentication(&credentials, &passkey_authentication)?;
+
         if result.needs_update() {
             self.auth_repo
                 .update_credential(result.cred_id(), result.counter())

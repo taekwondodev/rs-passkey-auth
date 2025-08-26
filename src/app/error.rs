@@ -48,17 +48,17 @@ impl IntoResponse for AppError {
             AppError::DatabaseConnection(_) | AppError::DatabaseOperation(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "database_error",
-                "Database error occurred".to_string(),
+                String::from("Database error occurred"),
             ),
             AppError::ConfigMissing(_) | AppError::ConfigInvalid(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "config_error",
-                "Configuration error".to_string(),
+                self.to_string(),
             ),
             AppError::WebAuthnCreation(_) | AppError::WebAuthnOperation(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "webauthn_error",
-                "WebAuthn error occurred".to_string(),
+                self.to_string(),
             ),
             AppError::JWTSignatureInvalid(_) => {
                 (StatusCode::UNAUTHORIZED, "jwt_invalid", self.to_string())
@@ -116,8 +116,38 @@ impl From<std::io::Error> for AppError {
     }
 }
 
+impl From<std::env::VarError> for AppError {
+    fn from(value: std::env::VarError) -> Self {
+        AppError::ConfigMissing(value.to_string())
+    }
+}
+
+impl From<std::num::ParseIntError> for AppError {
+    fn from(value: std::num::ParseIntError) -> Self {
+        AppError::ConfigInvalid(value.to_string())
+    }
+}
+
 impl From<uuid::Error> for AppError {
     fn from(value: uuid::Error) -> Self {
         AppError::InvalidUuid(value.to_string())
+    }
+}
+
+impl From<url::ParseError> for AppError {
+    fn from(value: url::ParseError) -> Self {
+        AppError::ConfigInvalid(value.to_string())
+    }
+}
+
+impl From<serde_json::Error> for AppError {
+    fn from(value: serde_json::Error) -> Self {
+        AppError::WebAuthnOperation(value.to_string())
+    }
+}
+
+impl From<webauthn_rs::prelude::WebauthnError> for AppError {
+    fn from(value: webauthn_rs::prelude::WebauthnError) -> Self {
+        AppError::WebAuthnOperation(value.to_string())
     }
 }

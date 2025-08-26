@@ -37,11 +37,10 @@ pub struct JwtService {
 
 impl JwtService {
     pub fn from_env() -> Result<Self, AppError> {
-        let _secret_key = env::var("JWT_SECRET_KEY")
-            .map_err(|_| AppError::ConfigMissing("JWT_SECRET_KEY".to_string()))?;
+        let _secret_key = env::var("JWT_SECRET_KEY")?;
         if _secret_key.len() < 32 {
-            return Err(AppError::ConfigInvalid(format!(
-                "JWT_SECRET_KEY must be at least 32 characters"
+            return Err(AppError::ConfigInvalid(String::from(
+                "JWT_SECRET_KEY must be at least 32 characters",
             )));
         }
 
@@ -87,8 +86,8 @@ impl JwtService {
         let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.secret_key));
         let mut parser = PasetoParser::<V4, Local>::default();
 
-        let json_value = parser.parse(token, &key).map_err(|e| {
-            AppError::JWTSignatureInvalid(format!("Token signature is invalid: {}", e))
+        let json_value = parser.parse(token, &key).map_err(|_| {
+            AppError::JWTSignatureInvalid(String::from("Token signature is invalid"))
         })?;
 
         let sub = Uuid::parse_str(json_value["sub"].as_str().unwrap()).unwrap();

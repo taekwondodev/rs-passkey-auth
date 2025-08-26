@@ -102,7 +102,7 @@ impl AuthRepository for PgRepository {
             .await?
         {
             Some(row) => Self::row_to_user(&row),
-            None => Err(AppError::NotFound(format!("Username not found"))),
+            None => Err(AppError::NotFound(String::from("Username not found"))),
         }
     }
 
@@ -152,7 +152,7 @@ impl AuthRepository for PgRepository {
             .await?
         {
             Some(row) => Self::row_to_webauthn_session(&row),
-            None => Err(AppError::NotFound(format!("Session not found"))),
+            None => Err(AppError::NotFound(String::from("Session not found"))),
         }
     }
 
@@ -172,9 +172,7 @@ impl AuthRepository for PgRepository {
         passkey: &webauthn_rs::prelude::Passkey,
     ) -> Result<(), AppError> {
         let client = &self.db.get().await?;
-        let passkey_json = serde_json::to_value(passkey).map_err(|e| {
-            AppError::WebAuthnOperation(format!("Failed to serialize passkey: {:?}", e))
-        })?;
+        let passkey_json = serde_json::to_value(passkey)?;
 
         client
             .execute(
@@ -202,10 +200,7 @@ impl AuthRepository for PgRepository {
         let mut passkeys = Vec::new();
         for row in rows {
             let passkey_json: serde_json::Value = row.try_get("passkey")?;
-            let passkey: webauthn_rs::prelude::Passkey = serde_json::from_value(passkey_json)
-                .map_err(|e| {
-                    AppError::WebAuthnOperation(format!("Failed to deserialize passkey: {:?}", e))
-                })?;
+            let passkey: webauthn_rs::prelude::Passkey = serde_json::from_value(passkey_json)?;
             passkeys.push(passkey);
         }
 

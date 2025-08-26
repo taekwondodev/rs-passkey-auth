@@ -17,29 +17,12 @@ pub struct DbConfig {
 
 impl DbConfig {
     pub fn from_env() -> Result<Self, AppError> {
-        let host =
-            env::var("DB_HOST").map_err(|_| AppError::ConfigMissing("DB_HOST".to_string()))?;
-
-        let port = env::var("DB_PORT")
-            .map_err(|_| AppError::ConfigMissing("DB_PORT".to_string()))?
-            .parse()
-            .map_err(|_| AppError::ConfigInvalid("DB_PORT must be a valid number".to_string()))?;
-
-        let user = env::var("POSTGRES_USER")
-            .map_err(|_| AppError::ConfigMissing("POSTGRES_USER".to_string()))?;
-
-        let password = env::var("POSTGRES_PASSWORD")
-            .map_err(|_| AppError::ConfigMissing("POSTGRES_PASSWORD".to_string()))?;
-
-        let dbname = env::var("POSTGRES_DB")
-            .map_err(|_| AppError::ConfigMissing("POSTGRES_DB".to_string()))?;
-
-        let max_size = env::var("DB_MAX_SIZE")
-            .map_err(|_| AppError::ConfigMissing("DB_MAX_SIZE".to_string()))?
-            .parse()
-            .map_err(|_| {
-                AppError::ConfigInvalid("DB_MAX_SIZE must be a valid number".to_string())
-            })?;
+        let host = env::var("DB_HOST")?;
+        let port = env::var("DB_PORT")?.parse()?;
+        let user = env::var("POSTGRES_USER")?;
+        let password = env::var("POSTGRES_PASSWORD")?;
+        let dbname = env::var("POSTGRES_DB")?;
+        let max_size = env::var("DB_MAX_SIZE")?.parse()?;
 
         Ok(Self {
             host: host,
