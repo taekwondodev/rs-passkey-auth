@@ -43,7 +43,7 @@ pub struct PgRepository {
 
 impl PgRepository {
     pub fn new(db: Pool) -> Self {
-        Self { db: db }
+        Self { db }
     }
 
     fn row_to_user(row: &tokio_postgres::Row) -> Result<User, AppError> {

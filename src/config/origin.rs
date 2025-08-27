@@ -35,9 +35,9 @@ impl OriginConfig {
             .to_string();
 
         Ok(Self {
-            frontend_origin: frontend_origin,
-            frontend_url: frontend_url,
-            backend_domain: backend_domain,
+            frontend_origin,
+            frontend_url,
+            backend_domain,
         })
     }
 

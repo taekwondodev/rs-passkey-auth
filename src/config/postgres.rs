@@ -25,12 +25,12 @@ impl DbConfig {
         let max_size = env::var("DB_MAX_SIZE")?.parse()?;
 
         Ok(Self {
-            host: host,
-            port: port,
-            user: user,
-            password: password,
-            dbname: dbname,
-            max_size: max_size,
+            host,
+            port,
+            user,
+            password,
+            dbname,
+            max_size,
         })
     }
 

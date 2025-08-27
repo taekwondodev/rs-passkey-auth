@@ -4,6 +4,8 @@ use time::Duration;
 use crate::{app::AppError, config::origin::OriginConfig};
 
 const PATH: &str = "/auth";
+const HTTP_ONLY: bool = true;
+const MAX_AGE: Duration = Duration::days(1);
 pub const REFRESH_TOKEN_COOKIE_NAME: &str = "refresh_token";
 
 #[derive(Debug, Clone)]
@@ -14,7 +16,6 @@ pub struct CookieService {
     pub path: String,
     pub http_only: bool,
     pub max_age: Duration,
-    pub is_https: bool,
     pub is_local: bool,
 }
 
@@ -29,9 +30,8 @@ impl CookieService {
             same_site: Self::determine_same_site(is_https, is_local),
             domain: Self::determine_cookie_domain(&origin_config, is_local)?,
             path: String::from(PATH),
-            http_only: true,
-            max_age: Duration::days(1),
-            is_https,
+            http_only: HTTP_ONLY,
+            max_age: MAX_AGE,
             is_local,
         })
     }

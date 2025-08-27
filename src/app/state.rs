@@ -24,7 +24,7 @@ impl AppState {
         jwt: JwtService,
         origin_config: &OriginConfig,
     ) -> Arc<Self> {
-        let user_repo: Arc<dyn AuthRepository> = Arc::new(PgRepository::new(db.clone()));
+        let user_repo: Arc<dyn AuthRepository> = Arc::new(PgRepository::new(db));
         let jwt_service = Arc::new(jwt);
         let auth_service = Arc::new(AuthService::new(webauthn, user_repo, jwt_service));
         let cookie_service = Arc::new(CookieService::new(origin_config).unwrap());

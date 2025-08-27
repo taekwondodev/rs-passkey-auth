@@ -57,7 +57,7 @@ impl JwtService {
         }
 
         Ok(Self {
-            secret_key: secret_key,
+            secret_key,
             access_token_duration: ACCESS_TOKEN_DURATION,
             refresh_token_duration: REFRESH_TOKEN_DURATION,
         })

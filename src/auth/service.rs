@@ -35,9 +35,9 @@ impl AuthService {
         jwt_service: Arc<JwtService>,
     ) -> Self {
         Self {
-            webauthn: webauthn,
-            auth_repo: auth_repo,
-            jwt_service: jwt_service,
+            webauthn,
+            auth_repo,
+            jwt_service,
         }
     }
 
