@@ -36,12 +36,10 @@ pub struct JwtService {
 }
 
 impl JwtService {
-    pub fn from_env() -> Result<Self, AppError> {
-        let _secret_key = env::var("JWT_SECRET_KEY")?;
+    pub fn from_env() -> Self {
+        let _secret_key = env::var("JWT_SECRET_KEY").unwrap();
         if _secret_key.len() < 32 {
-            return Err(AppError::Config(String::from(
-                "JWT_SECRET_KEY must be at least 32 characters",
-            )));
+            panic!("JWT_SECRET_KEY must be at least 32 characters");
         }
 
         let mut secret_key = [0u8; 32];
@@ -56,11 +54,11 @@ impl JwtService {
             }
         }
 
-        Ok(Self {
+        Self {
             secret_key,
             access_token_duration: ACCESS_TOKEN_DURATION,
             refresh_token_duration: REFRESH_TOKEN_DURATION,
-        })
+        }
     }
 
     pub fn generate_token_pair(
@@ -68,7 +66,7 @@ impl JwtService {
         user_id: Uuid,
         username: &str,
         role: Option<String>,
-    ) -> Result<TokenPair, AppError> {
+    ) -> TokenPair {
         let now = Utc::now();
         let access_exp = now + self.access_token_duration;
         let refresh_exp = now + self.refresh_token_duration;
@@ -76,10 +74,10 @@ impl JwtService {
         let access_token = self.create_token(user_id, username, role.clone(), access_exp);
         let refresh_token = self.create_token(user_id, username, role, refresh_exp);
 
-        Ok(TokenPair {
-            access_token: access_token,
-            refresh_token: refresh_token,
-        })
+        TokenPair {
+            access_token,
+            refresh_token,
+        }
     }
 
     pub fn validate_token(&self, token: &str) -> Result<TokenClaims, AppError> {

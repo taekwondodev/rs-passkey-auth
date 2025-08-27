@@ -20,20 +20,20 @@ pub struct CookieService {
 }
 
 impl CookieService {
-    pub fn new(origin_config: &OriginConfig) -> Result<Self, AppError> {
+    pub fn new(origin_config: &OriginConfig) -> Self {
         let is_https = origin_config.frontend_url.scheme() == "https";
         let is_local = origin_config.backend_domain.contains("localhost")
             || origin_config.backend_domain.contains("127.0.0.1");
 
-        Ok(Self {
+        Self {
             secure: is_https,
             same_site: Self::determine_same_site(is_https, is_local),
-            domain: Self::determine_cookie_domain(&origin_config, is_local)?,
+            domain: Self::determine_cookie_domain(&origin_config, is_local),
             path: String::from(PATH),
             http_only: HTTP_ONLY,
             max_age: MAX_AGE,
             is_local,
-        })
+        }
     }
 
     pub fn create_refresh_token_cookie(&self, token: &str) -> Cookie<'static> {
@@ -87,29 +87,22 @@ impl CookieService {
         }
     }
 
-    fn determine_cookie_domain(
-        origin_config: &OriginConfig,
-        is_local: bool,
-    ) -> Result<Option<String>, AppError> {
+    fn determine_cookie_domain(origin_config: &OriginConfig, is_local: bool) -> Option<String> {
         if is_local {
-            return Ok(None);
+            return None;
         }
 
-        let frontend_domain = origin_config
-            .frontend_url
-            .host_str()
-            .ok_or_else(|| AppError::Config(String::from("Frontend URL has no host")))?
-            .to_string();
+        let frontend_domain = origin_config.frontend_url.host_str().unwrap().to_string();
 
         let backend_domain = &origin_config.backend_domain;
 
         if Self::are_subdomains_of_same(&frontend_domain, backend_domain) {
             if let Some(base_domain) = Self::get_base_domain(&frontend_domain, backend_domain) {
-                return Ok(Some(format!(".{}", base_domain)));
+                return Some(format!(".{}", base_domain));
             }
         }
 
-        Ok(None)
+        None
     }
 
     fn are_subdomains_of_same(domain1: &str, domain2: &str) -> bool {

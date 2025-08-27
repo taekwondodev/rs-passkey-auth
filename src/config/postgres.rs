@@ -3,8 +3,6 @@ use std::env;
 use deadpool_postgres::{Config, Pool, Runtime};
 use tokio_postgres::NoTls;
 
-use crate::app::AppError;
-
 #[derive(Debug, Clone)]
 pub struct DbConfig {
     pub host: String,
@@ -16,22 +14,22 @@ pub struct DbConfig {
 }
 
 impl DbConfig {
-    pub fn from_env() -> Result<Self, AppError> {
-        let host = env::var("DB_HOST")?;
-        let port = env::var("DB_PORT")?.parse()?;
-        let user = env::var("POSTGRES_USER")?;
-        let password = env::var("POSTGRES_PASSWORD")?;
-        let dbname = env::var("POSTGRES_DB")?;
-        let max_size = env::var("DB_MAX_SIZE")?.parse()?;
+    pub fn from_env() -> Self {
+        let host = env::var("DB_HOST").unwrap();
+        let port = env::var("DB_PORT").unwrap().parse().unwrap();
+        let user = env::var("POSTGRES_USER").unwrap();
+        let password = env::var("POSTGRES_PASSWORD").unwrap();
+        let dbname = env::var("POSTGRES_DB").unwrap();
+        let max_size = env::var("DB_MAX_SIZE").unwrap().parse().unwrap();
 
-        Ok(Self {
+        Self {
             host,
             port,
             user,
             password,
             dbname,
             max_size,
-        })
+        }
     }
 
     pub fn to_deadpool_config(&self) -> Config {
@@ -45,10 +43,8 @@ impl DbConfig {
         cfg
     }
 
-    pub fn create_pool(&self) -> Result<Pool, AppError> {
+    pub fn create_pool(&self) -> Pool {
         let config = self.to_deadpool_config();
-        config
-            .create_pool(Some(Runtime::Tokio1), NoTls)
-            .map_err(AppError::from)
+        config.create_pool(Some(Runtime::Tokio1), NoTls).unwrap()
     }
 }

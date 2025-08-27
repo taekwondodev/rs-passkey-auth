@@ -5,7 +5,6 @@ use serde_json::json;
 
 #[derive(Debug)]
 pub enum AppError {
-    Config(String),
     InternalServer(String),
     NotFound(String),
     AlreadyExists(String),
@@ -16,7 +15,6 @@ pub enum AppError {
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AppError::Config(msg) => write!(f, "Configuration error: {}", msg),
             AppError::InternalServer(msg) => write!(f, "Internal server error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
             AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
@@ -31,11 +29,6 @@ impl std::error::Error for AppError {}
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
         let (status, error_type, message) = match self {
-            AppError::Config(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "config_error",
-                self.to_string(),
-            ),
             AppError::InternalServer(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal_server_error",
@@ -59,36 +52,6 @@ impl IntoResponse for AppError {
         }));
 
         (status, body).into_response()
-    }
-}
-
-impl From<deadpool_postgres::CreatePoolError> for AppError {
-    fn from(value: deadpool_postgres::CreatePoolError) -> Self {
-        AppError::Config(value.to_string())
-    }
-}
-
-impl From<std::io::Error> for AppError {
-    fn from(value: std::io::Error) -> Self {
-        AppError::Config(value.to_string())
-    }
-}
-
-impl From<std::env::VarError> for AppError {
-    fn from(value: std::env::VarError) -> Self {
-        AppError::Config(value.to_string())
-    }
-}
-
-impl From<std::num::ParseIntError> for AppError {
-    fn from(value: std::num::ParseIntError) -> Self {
-        AppError::Config(value.to_string())
-    }
-}
-
-impl From<url::ParseError> for AppError {
-    fn from(value: url::ParseError) -> Self {
-        AppError::Config(value.to_string())
     }
 }
 

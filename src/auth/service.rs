@@ -142,9 +142,9 @@ impl AuthService {
 
         self.cleanup_session(session_id);
 
-        let token_pair =
-            self.jwt_service
-                .generate_token_pair(user.id, &user.username, user.role)?;
+        let token_pair = self
+            .jwt_service
+            .generate_token_pair(user.id, &user.username, user.role);
 
         Ok((
             TokenResponse {

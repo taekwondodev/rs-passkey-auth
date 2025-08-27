@@ -14,18 +14,18 @@ async fn main() -> Result<(), AppError> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let db_config = DbConfig::from_env()?;
-    let db_pool = db_config.create_pool()?;
+    let db_config = DbConfig::from_env();
+    let db_pool = db_config.create_pool();
     let _conn = db_pool.get().await.map_err(AppError::from)?;
 
-    let origin_config = OriginConfig::from_env()?;
-    let webauthn_config = WebAuthnConfig::from_env()?;
+    let origin_config = OriginConfig::from_env();
+    let webauthn_config = WebAuthnConfig::from_env();
     let webauthn = webauthn_config.create_webauthn(&origin_config);
-    let cors_layer = origin_config.create_cors_layer()?;
+    let cors_layer = origin_config.create_cors_layer();
 
-    let jwt = JwtService::from_env()?;
+    let jwt = JwtService::from_env();
 
-    let state = AppState::new(webauthn, db_pool, jwt, &origin_config);
+    let state = AppState::new(webauthn, db_pool, jwt, origin_config);
 
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))
@@ -36,9 +36,9 @@ async fn main() -> Result<(), AppError> {
         .layer(TraceLayer::new_for_http())
         .layer(cors_layer);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     println!("Server listening on http://0.0.0.0:8080");
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app).await.unwrap();
 
     Ok(())
 }

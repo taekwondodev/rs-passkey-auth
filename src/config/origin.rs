@@ -4,8 +4,6 @@ use axum::http::{self, HeaderValue, Method};
 use tower_http::cors::CorsLayer;
 use url::Url;
 
-use crate::app::AppError;
-
 const ALLOWED_METHODS: [Method; 3] = [Method::GET, Method::POST, Method::OPTIONS];
 const ALLOWED_HEADERS: [http::HeaderName; 2] =
     [http::header::CONTENT_TYPE, http::header::AUTHORIZATION];
@@ -21,22 +19,19 @@ pub struct OriginConfig {
 }
 
 impl OriginConfig {
-    pub fn from_env() -> Result<Self, AppError> {
-        let frontend_origin = env::var("ORIGIN_FRONTEND")?;
-        let frontend_url = Url::parse(&frontend_origin)?;
+    pub fn from_env() -> Self {
+        let frontend_origin = env::var("ORIGIN_FRONTEND").unwrap();
+        let frontend_url = Url::parse(&frontend_origin).unwrap();
 
-        let _backend_url = env::var("URL_BACKEND")?;
-        let backend_url = Url::parse(&_backend_url)?;
-        let backend_domain = backend_url
-            .host_str()
-            .ok_or_else(|| AppError::Config(String::from("URL_BACKEND must have a valid host")))?
-            .to_string();
+        let _backend_url = env::var("URL_BACKEND").unwrap();
+        let backend_url = Url::parse(&_backend_url).unwrap();
+        let backend_domain = backend_url.host_str().unwrap().to_string();
 
-        Ok(Self {
+        Self {
             frontend_origin,
             frontend_url,
             backend_domain,
-        })
+        }
     }
 
     pub fn rp_id(&self) -> &str {
@@ -51,20 +46,14 @@ impl OriginConfig {
         &self.frontend_origin
     }
 
-    pub fn create_cors_layer(&self) -> Result<CorsLayer, AppError> {
-        let origin = self
-            .frontend_origin
-            .parse::<HeaderValue>()
-            .map_err(|_| AppError::Config(String::from("Invalid frontend URL for CORS")))?;
-
-        let cors = CorsLayer::new()
+    pub fn create_cors_layer(&self) -> CorsLayer {
+        let origin = self.frontend_origin.parse::<HeaderValue>().unwrap();
+        CorsLayer::new()
             .allow_origin(origin)
             .allow_methods(ALLOWED_METHODS)
             .allow_headers(ALLOWED_HEADERS)
             .allow_credentials(ALLOW_CREDENTIALS)
             .max_age(MAX_AGE)
-            .vary(VARY_HEADERS);
-
-        Ok(cors)
+            .vary(VARY_HEADERS)
     }
 }
