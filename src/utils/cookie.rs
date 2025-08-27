@@ -98,7 +98,7 @@ impl CookieService {
         let frontend_domain = origin_config
             .frontend_url
             .host_str()
-            .ok_or_else(|| AppError::ConfigInvalid(String::from("Frontend URL has no host")))?
+            .ok_or_else(|| AppError::Config(String::from("Frontend URL has no host")))?
             .to_string();
 
         let backend_domain = &origin_config.backend_domain;

@@ -39,7 +39,7 @@ impl JwtService {
     pub fn from_env() -> Result<Self, AppError> {
         let _secret_key = env::var("JWT_SECRET_KEY")?;
         if _secret_key.len() < 32 {
-            return Err(AppError::ConfigInvalid(String::from(
+            return Err(AppError::Config(String::from(
                 "JWT_SECRET_KEY must be at least 32 characters",
             )));
         }
@@ -86,9 +86,9 @@ impl JwtService {
         let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.secret_key));
         let mut parser = PasetoParser::<V4, Local>::default();
 
-        let json_value = parser.parse(token, &key).map_err(|_| {
-            AppError::JWTSignatureInvalid(String::from("Token signature is invalid"))
-        })?;
+        let json_value = parser
+            .parse(token, &key)
+            .map_err(|_| AppError::Unauthorized(String::from("Token signature is invalid")))?;
 
         let sub = Uuid::parse_str(json_value["sub"].as_str().unwrap()).unwrap();
         let username = json_value["username"].as_str().unwrap().to_string();
@@ -98,7 +98,7 @@ impl JwtService {
 
         let now = Utc::now().timestamp();
         if exp < now {
-            return Err(AppError::JWTExpired(String::from("Token has expired")));
+            return Err(AppError::Unauthorized(String::from("Token has expired")));
         }
 
         Ok(TokenClaims {
