@@ -67,6 +67,12 @@ impl From<tokio_postgres::Error> for AppError {
     }
 }
 
+impl From<redis::RedisError> for AppError {
+    fn from(value: redis::RedisError) -> Self {
+        AppError::InternalServer(value.to_string())
+    }
+}
+
 impl From<serde_json::Error> for AppError {
     fn from(value: serde_json::Error) -> Self {
         AppError::InternalServer(value.to_string())

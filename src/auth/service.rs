@@ -155,6 +155,20 @@ impl AuthService {
         ))
     }
 
+    pub async fn refresh(&self, refresh_token: &str) -> Result<(TokenResponse, String), AppError> {
+        // in valida token, devo controllare se è blacklistato
+        // blacklisto il vecchio token
+        // dai claims devo creare un nuovo token pair
+        // ok
+        todo!("unimplemented");
+    }
+
+    pub async fn logout(&self, refresh_token: &str) -> Result<MessageResponse, AppError> {
+        // se è diverso da "" e valido, blacklisto in un thread a parte
+        // a prescindere ok
+        todo!("unimplemented");
+    }
+
     async fn prepare_session_data<T, U>(
         &self,
         session_obj: T,

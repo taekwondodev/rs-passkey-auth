@@ -3,6 +3,8 @@ use std::env;
 use deadpool_postgres::{Config, Pool, Runtime};
 use tokio_postgres::NoTls;
 
+const DB_MAX_SIZE: usize = 16;
+
 #[derive(Debug, Clone)]
 pub struct DbConfig {
     pub host: String,
@@ -20,7 +22,6 @@ impl DbConfig {
         let user = env::var("POSTGRES_USER").unwrap();
         let password = env::var("POSTGRES_PASSWORD").unwrap();
         let dbname = env::var("POSTGRES_DB").unwrap();
-        let max_size = env::var("DB_MAX_SIZE").unwrap().parse().unwrap();
 
         Self {
             host,
@@ -28,7 +29,7 @@ impl DbConfig {
             user,
             password,
             dbname,
-            max_size,
+            max_size: DB_MAX_SIZE,
         }
     }
 
