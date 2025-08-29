@@ -75,6 +75,20 @@ impl AuthRepository for PgRepository {
     async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError> {
         let client = &self.db.get().await?;
 
+        match self.get_user_by_username(&username).await {
+            Ok(user) => {
+                if user.status == "active" {
+                    return Err(AppError::AlreadyExists(String::from(
+                        "Username already exists",
+                    )));
+                } else {
+                    return Ok(user);
+                }
+            }
+            Err(AppError::NotFound(_)) => {}
+            Err(e) => return Err(e),
+        };
+
         let row = if let Some(i) = role {
             client
                 .query_one(
@@ -129,7 +143,7 @@ impl AuthRepository for PgRepository {
         let expire_at = Utc::now() + chrono::Duration::minutes(30);
 
         let row = client.query_one(
-                "INSERT INTO webauthn_sessions (user_id, data, purpose, expires_at) VALUES ($1, $2, $3, $4)",
+                "INSERT INTO webauthn_sessions (user_id, data, purpose, expires_at) VALUES ($1, $2, $3, $4) RETURNING id",
                 &[&user_id, &data, &purpose, &expire_at],
             )
             .await?;

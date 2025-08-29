@@ -44,16 +44,6 @@ impl AuthService {
     pub async fn begin_register(&self, req: BeginRequest) -> Result<BeginResponse, AppError> {
         req.validate()?;
 
-        match self.auth_repo.get_user_by_username(&req.username).await {
-            Ok(_) => {
-                return Err(AppError::AlreadyExists(String::from(
-                    "Username already exists",
-                )));
-            }
-            Err(AppError::NotFound(_)) => {}
-            Err(e) => return Err(e),
-        }
-
         let user = self
             .auth_repo
             .create_user(&req.username, req.role.as_deref())
@@ -67,7 +57,7 @@ impl AuthService {
         )?;
 
         let (session_data, opts) = self.prepare_session_data(passkey_registration, ccr).await?;
-        self.create_session_response(user.id, session_data, opts, "login")
+        self.create_session_response(user.id, session_data, opts, "registration")
             .await
     }
 
@@ -165,7 +155,6 @@ impl AuthService {
         let token_pair =
             self.jwt_service
                 .generate_token_pair(claims.sub, &claims.username, claims.role);
-        // parallelizzare token pair e blacklist ?
         Ok((
             TokenResponse {
                 message: String::from("Refresh completed successfully!"),

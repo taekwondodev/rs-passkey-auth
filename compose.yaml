@@ -5,11 +5,13 @@ services:
       dockerfile: Dockerfile
     container_name: passkey_server
     ports:
-      - 3000:3000
+      - 8080:8080
     env_file:
       - .env
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   postgres:
@@ -17,6 +19,7 @@ services:
     container_name: passkey_postgres
     volumes:
       - db-data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -32,7 +35,16 @@ services:
     container_name: passkey_redis
     ports:
       - 6379:6379
-    command: ["redis-server", "--appendonly", "yes"]
+    command:
+      [
+        "redis-server",
+        "--appendonly",
+        "yes",
+        "--maxmemory",
+        "256mb",
+        "--maxmemory-policy",
+        "allkeys-lru",
+      ]
     volumes:
       - redis-data:/data
     healthcheck:
