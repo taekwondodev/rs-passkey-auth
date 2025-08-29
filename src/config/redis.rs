@@ -1,6 +1,6 @@
 use std::env;
 
-use redis::{Client, RedisResult};
+use redis::{Client, aio::ConnectionManager};
 
 const REDIS_MAX_CONNECTIONS: u32 = 16;
 const CONNECTION_TIMEOUT: u64 = 5000;
@@ -25,17 +25,8 @@ impl RedisConfig {
         }
     }
 
-    pub fn create_client(&self) -> Client {
-        Client::open(self.url.as_str()).unwrap()
-    }
-
-    pub async fn test_connection(&self) -> RedisResult<()> {
-        use redis::AsyncCommands;
-
-        let client = self.create_client();
-        let mut conn = client.get_multiplexed_async_connection().await?;
-        let _: String = conn.ping().await?;
-
-        Ok(())
+    pub async fn create_conn_manager(&self) -> ConnectionManager {
+        let client = Client::open(self.url.as_str()).unwrap();
+        ConnectionManager::new(client).await.unwrap()
     }
 }

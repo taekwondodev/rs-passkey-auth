@@ -94,7 +94,7 @@ impl AuthService {
         self.cleanup_session(session_id);
 
         Ok(MessageResponse {
-            message: String::from("Registration completed successfully"),
+            message: String::from("Registration completed successfully!"),
         })
     }
 
@@ -148,25 +148,45 @@ impl AuthService {
 
         Ok((
             TokenResponse {
-                message: String::from("Login completed successfully"),
+                message: String::from("Login completed successfully!"),
                 access_token: token_pair.access_token,
             },
             token_pair.refresh_token,
         ))
     }
 
-    pub async fn refresh(&self, refresh_token: &str) -> Result<(TokenResponse, String), AppError> {
-        // in valida token, devo controllare se è blacklistato
-        // blacklisto il vecchio token
-        // dai claims devo creare un nuovo token pair
-        // ok
-        todo!("unimplemented");
+    pub async fn refresh(
+        &self,
+        refresh_token: String,
+    ) -> Result<(TokenResponse, String), AppError> {
+        let claims = self.jwt_service.validate(&refresh_token).await?;
+        self.jwt_service.blacklist(&claims.jti, claims.exp).await?;
+
+        let token_pair =
+            self.jwt_service
+                .generate_token_pair(claims.sub, &claims.username, claims.role);
+        // parallelizzare token pair e blacklist ?
+        Ok((
+            TokenResponse {
+                message: String::from("Refresh completed successfully!"),
+                access_token: token_pair.access_token,
+            },
+            token_pair.refresh_token,
+        ))
     }
 
-    pub async fn logout(&self, refresh_token: &str) -> Result<MessageResponse, AppError> {
-        // se è diverso da "" e valido, blacklisto in un thread a parte
-        // a prescindere ok
-        todo!("unimplemented");
+    pub async fn logout(&self, refresh_token: String) -> Result<MessageResponse, AppError> {
+        if !refresh_token.is_empty() {
+            if let Ok(claims) = self.jwt_service.validate(&refresh_token).await {
+                if let Err(e) = self.jwt_service.blacklist(&claims.jti, claims.exp).await {
+                    tracing::error!("Failed to blacklist token during logout: {}", e);
+                }
+            }
+        }
+
+        Ok(MessageResponse {
+            message: String::from("Logout completed successfully!"),
+        })
     }
 
     async fn prepare_session_data<T, U>(
@@ -223,7 +243,7 @@ impl AuthService {
         let auth_repo = Arc::clone(&self.auth_repo);
         tokio::spawn(async move {
             if let Err(e) = auth_repo.delete_webauthn_session(session_id).await {
-                tracing::warn!("Failed to delete webauthn session {}: {}", session_id, e);
+                tracing::error!("Failed to delete webauthn session {}: {}", session_id, e);
             }
         });
     }

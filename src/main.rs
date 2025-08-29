@@ -5,7 +5,6 @@ use rs_passkey_auth::{
     config::{
         origin::OriginConfig, postgres::DbConfig, redis::RedisConfig, webauthn::WebAuthnConfig,
     },
-    utils::jwt::JwtService,
 };
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -18,7 +17,6 @@ async fn main() -> Result<(), AppError> {
 
     let db_config = DbConfig::from_env();
     let db_pool = db_config.create_pool();
-    let _conn = db_pool.get().await.map_err(AppError::from)?;
 
     let origin_config = OriginConfig::from_env();
     let webauthn_config = WebAuthnConfig::from_env();
@@ -26,21 +24,16 @@ async fn main() -> Result<(), AppError> {
     let cors_layer = origin_config.create_cors_layer();
 
     let redis_config = RedisConfig::from_env();
-    let _conn = redis_config
-        .test_connection()
-        .await
-        .map_err(AppError::from)?;
-    let jwt = JwtService::from_env(); // devo passargli redis
+    let manager = redis_config.create_conn_manager().await;
 
-    let state = AppState::new(webauthn, db_pool, jwt, origin_config);
-
+    let state = AppState::new(webauthn, db_pool, manager, origin_config);
     let app = Router::new()
         .route("/auth/register/begin", post(handler::begin_register))
         .route("/auth/register/finish", post(handler::finish_register))
         .route("/auth/login/begin", post(handler::begin_login))
         .route("/auth/login/finish", post(handler::finish_login))
         .route("/auth/refresh", post(handler::refresh))
-        .route("auth/logout", post(handler::logout))
+        .route("/auth/logout", post(handler::logout))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
         .layer(cors_layer);
