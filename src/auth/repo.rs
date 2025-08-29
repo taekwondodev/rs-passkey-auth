@@ -87,7 +87,7 @@ impl AuthRepository for PgRepository {
             }
             Err(AppError::NotFound(_)) => {}
             Err(e) => return Err(e),
-        };
+        }
 
         let row = if let Some(i) = role {
             client

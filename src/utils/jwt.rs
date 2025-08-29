@@ -32,12 +32,24 @@ pub struct TokenClaims {
     pub exp: i64,
 }
 
+#[derive(Debug, Clone)]
+pub struct TokenClaimsTmp {
+    pub token_type: TokenType,
+    pub sub: String,
+    pub username: String,
+    pub role: Option<String>,
+    pub jti: Option<String>,
+    pub iat: String,
+    pub exp: String,
+}
+
 #[derive(Debug)]
 pub struct TokenPair {
     pub access_token: String,
     pub refresh_token: String,
 }
 
+#[derive(Debug, Clone)]
 pub enum TokenType {
     Access,
     Refresh,
@@ -100,22 +112,24 @@ impl JwtService {
         let access_exp = now + self.access_token_duration;
         let refresh_exp = now + self.refresh_token_duration;
 
-        let access_token = self.create_token(
-            TokenType::Access,
-            user_id,
-            username,
-            role.clone(),
-            access_exp,
-            now,
-        );
-        let refresh_token = self.create_token(
-            TokenType::Refresh,
-            user_id,
-            username,
-            role,
-            refresh_exp,
-            now,
-        );
+        let access_token = self.create_token(&TokenClaimsTmp {
+            token_type: TokenType::Access,
+            sub: user_id.to_string(),
+            username: username.to_string(),
+            role: role.clone(),
+            jti: None,
+            iat: now.to_rfc3339(),
+            exp: access_exp.to_rfc3339(),
+        });
+        let refresh_token = self.create_token(&TokenClaimsTmp {
+            token_type: TokenType::Refresh,
+            sub: user_id.to_string(),
+            username: username.to_string(),
+            role: role,
+            jti: Some(Self::generate_jti()),
+            iat: now.to_rfc3339(),
+            exp: refresh_exp.to_rfc3339(),
+        });
 
         TokenPair {
             access_token,
@@ -184,7 +198,7 @@ impl JwtService {
                     "Token has been revoked",
                 )));
             }
-        };
+        }
 
         Ok(TokenClaims {
             sub,
@@ -226,29 +240,16 @@ impl JwtService {
         BASE64_URL_SAFE_NO_PAD.encode(uuid.as_bytes())
     }
 
-    fn create_token(
-        &self,
-        token_type: TokenType,
-        user_id: Uuid,
-        username: &str,
-        role: Option<String>,
-        exp: chrono::DateTime<Utc>,
-        now: chrono::DateTime<Utc>,
-    ) -> String {
-        let jti = Self::generate_jti();
-        let exp_iso = exp.to_rfc3339();
-        let iat_iso = now.to_rfc3339();
-        let _user_id = String::from(user_id);
-
-        match token_type {
+    fn create_token(&self, tmp_claims: &TokenClaimsTmp) -> String {
+        match tmp_claims.token_type {
             TokenType::Access => {
                 let _key = Key::from(&self.private_key);
                 let key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&_key);
-                self.create_access_token(key, exp_iso, iat_iso, _user_id, username, role)
+                self.create_access_token(key, tmp_claims)
             }
             TokenType::Refresh => {
                 let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.symmetric_key));
-                self.create_refresh_token(key, jti, exp_iso, iat_iso, _user_id, username, role)
+                self.create_refresh_token(key, tmp_claims)
             }
         }
     }
@@ -256,27 +257,27 @@ impl JwtService {
     fn create_access_token(
         &self,
         key: PasetoAsymmetricPrivateKey<'_, V4, Public>,
-        exp_iso: String,
-        iat_iso: String,
-        user_id: String,
-        username: &str,
-        role: Option<String>,
+        tmp_claims: &TokenClaimsTmp,
     ) -> String {
-        if let Some(ref r) = role {
+        if let Some(ref r) = tmp_claims.role {
             PasetoBuilder::<V4, Public>::default()
-                .set_claim(SubjectClaim::from(user_id.as_str()))
-                .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(CustomClaim::try_from(("username", username)).unwrap())
+                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
+                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
+                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
+                .set_claim(
+                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
+                )
                 .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
                 .build(&key)
                 .unwrap()
         } else {
             PasetoBuilder::<V4, Public>::default()
-                .set_claim(SubjectClaim::from(user_id.as_str()))
-                .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(CustomClaim::try_from(("username", username)).unwrap())
+                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
+                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
+                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
+                .set_claim(
+                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
+                )
                 .build(&key)
                 .unwrap()
         }
@@ -285,30 +286,33 @@ impl JwtService {
     fn create_refresh_token(
         &self,
         key: PasetoSymmetricKey<V4, Local>,
-        jti: String,
-        exp_iso: String,
-        iat_iso: String,
-        user_id: String,
-        username: &str,
-        role: Option<String>,
+        tmp_claims: &TokenClaimsTmp,
     ) -> String {
-        if let Some(ref r) = role {
+        if let Some(ref r) = tmp_claims.role {
             PasetoBuilder::<V4, Local>::default()
-                .set_claim(SubjectClaim::from(user_id.as_str()))
-                .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(jti.as_str()))
-                .set_claim(CustomClaim::try_from(("username", username)).unwrap())
+                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
+                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
+                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
+                .set_claim(TokenIdentifierClaim::from(
+                    tmp_claims.jti.as_ref().unwrap().as_str(),
+                ))
+                .set_claim(
+                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
+                )
                 .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
                 .build(&key)
                 .unwrap()
         } else {
             PasetoBuilder::<V4, Local>::default()
-                .set_claim(SubjectClaim::from(user_id.as_str()))
-                .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(jti.as_str()))
-                .set_claim(CustomClaim::try_from(("username", username)).unwrap())
+                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
+                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
+                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
+                .set_claim(TokenIdentifierClaim::from(
+                    tmp_claims.jti.as_ref().unwrap().as_str(),
+                ))
+                .set_claim(
+                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
+                )
                 .build(&key)
                 .unwrap()
         }

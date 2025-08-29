@@ -153,9 +153,9 @@ impl AuthService {
             .jwt_service
             .validate(TokenType::Refresh, &refresh_token)
             .await?;
-        if let Some(j) = &claims.jti {
-            self.jwt_service.blacklist(j, claims.exp).await?;
-        }
+        self.jwt_service
+            .blacklist(&claims.jti.unwrap(), claims.exp)
+            .await?;
 
         let token_pair =
             self.jwt_service
@@ -176,10 +176,12 @@ impl AuthService {
                 .validate(TokenType::Access, &refresh_token)
                 .await
             {
-                if let Some(j) = &claims.jti {
-                    if let Err(e) = self.jwt_service.blacklist(j, claims.exp).await {
-                        tracing::error!("Failed to blacklist token during logout: {}", e);
-                    }
+                if let Err(e) = self
+                    .jwt_service
+                    .blacklist(&claims.jti.unwrap(), claims.exp)
+                    .await
+                {
+                    tracing::error!("Failed to blacklist token during logout: {}", e);
                 }
             }
         }

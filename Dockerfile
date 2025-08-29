@@ -8,9 +8,9 @@ WORKDIR /app
 
 RUN apk add --no-cache \
     clang \
+    git \
     lld \
     musl-dev \
-    git \
     pkgconfig \
     openssl-dev \
     openssl-libs-static
@@ -31,7 +31,7 @@ RUN --mount=type=cache,target=/app/target/ \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
     cargo build --locked --release && \
-    cp ./target/release/$APP_NAME /bin/server
+    cp ./target/release/${APP_NAME} /bin/server
 
 ################################################################################
 
