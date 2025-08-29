@@ -27,7 +27,7 @@ pub struct TokenClaims {
     pub sub: Uuid,
     pub username: String,
     pub role: Option<String>,
-    pub jti: String,
+    pub jti: Option<String>,
     pub iat: i64,
     pub exp: i64,
 }
@@ -159,7 +159,7 @@ impl JwtService {
         let sub = Uuid::parse_str(json_value["sub"].as_str().unwrap()).unwrap();
         let username = json_value["username"].as_str().unwrap().to_string();
         let role = json_value["role"].as_str().map(|s| s.to_string());
-        let jti = json_value["jti"].as_str().unwrap().to_string();
+        let jti = json_value["jti"].as_str().map(|s| s.to_string());
 
         let _iat = json_value["iat"].as_str().unwrap();
         let iat = chrono::DateTime::parse_from_rfc3339(_iat)
@@ -174,11 +174,13 @@ impl JwtService {
             return Err(AppError::Unauthorized(String::from("Token has expired")));
         }
 
-        if self.is_blacklisted(&jti).await? {
-            return Err(AppError::Unauthorized(String::from(
-                "Token has been revoked",
-            )));
-        }
+        if let Some(ref j) = jti {
+            if self.is_blacklisted(&j).await? {
+                return Err(AppError::Unauthorized(String::from(
+                    "Token has been revoked",
+                )));
+            }
+        };
 
         Ok(TokenClaims {
             sub,
@@ -238,7 +240,7 @@ impl JwtService {
             TokenType::Access => {
                 let _key = Key::from(&self.private_key);
                 let key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&_key);
-                self.create_access_token(key, jti, exp_iso, iat_iso, _user_id, username, role)
+                self.create_access_token(key, exp_iso, iat_iso, _user_id, username, role)
             }
             TokenType::Refresh => {
                 let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.symmetric_key));
@@ -250,7 +252,6 @@ impl JwtService {
     fn create_access_token(
         &self,
         key: PasetoAsymmetricPrivateKey<'_, V4, Public>,
-        jti: String,
         exp_iso: String,
         iat_iso: String,
         user_id: String,
@@ -262,7 +263,6 @@ impl JwtService {
                 .set_claim(SubjectClaim::from(user_id.as_str()))
                 .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
                 .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(jti.as_str()))
                 .set_claim(CustomClaim::try_from(("username", username)).unwrap())
                 .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
                 .build(&key)
@@ -272,7 +272,6 @@ impl JwtService {
                 .set_claim(SubjectClaim::from(user_id.as_str()))
                 .set_claim(ExpirationClaim::try_from(exp_iso.as_str()).unwrap())
                 .set_claim(IssuedAtClaim::try_from(iat_iso.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(jti.as_str()))
                 .set_claim(CustomClaim::try_from(("username", username)).unwrap())
                 .build(&key)
                 .unwrap()
