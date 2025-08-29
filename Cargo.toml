@@ -26,8 +26,8 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19" }
 tower-http = { version = "0.6.6", features = ["trace", "cors"] }
 rusty_paseto = { version = "0.7.2", features = ["v4"] }
-rand = "0.9.2"
 base64 = "0.22.1"
 axum-extra = { version = "0.10.1", features = ["cookie"] }
 time = { version = "0.3.41", features = ["macros"] }
 redis = { version = "0.32.5", features = ["tokio-comp", "connection-manager"] }
+ed25519-dalek = "2.2.0"

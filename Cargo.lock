@@ -1495,7 +1495,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "deadpool-postgres",
- "rand 0.9.2",
+ "ed25519-dalek",
  "redis",
  "rusty_paseto",
  "serde",

@@ -19,7 +19,7 @@ use crate::{
         model::WebAuthnSession,
         repo::AuthRepository,
     },
-    utils::jwt::JwtService,
+    utils::jwt::{JwtService, TokenType},
 };
 
 pub struct AuthService {
@@ -149,7 +149,10 @@ impl AuthService {
         &self,
         refresh_token: String,
     ) -> Result<(TokenResponse, String), AppError> {
-        let claims = self.jwt_service.validate(&refresh_token).await?;
+        let claims = self
+            .jwt_service
+            .validate(TokenType::Refresh, &refresh_token)
+            .await?;
         self.jwt_service.blacklist(&claims.jti, claims.exp).await?;
 
         let token_pair =
@@ -166,7 +169,11 @@ impl AuthService {
 
     pub async fn logout(&self, refresh_token: String) -> Result<MessageResponse, AppError> {
         if !refresh_token.is_empty() {
-            if let Ok(claims) = self.jwt_service.validate(&refresh_token).await {
+            if let Ok(claims) = self
+                .jwt_service
+                .validate(TokenType::Access, &refresh_token)
+                .await
+            {
                 if let Err(e) = self.jwt_service.blacklist(&claims.jti, claims.exp).await {
                     tracing::error!("Failed to blacklist token during logout: {}", e);
                 }
