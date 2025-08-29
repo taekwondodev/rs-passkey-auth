@@ -1,4 +1,4 @@
-use axum::{Router, routing::post};
+use axum::{Router, routing::get, routing::post};
 use rs_passkey_auth::{
     app::{AppError, AppState},
     auth::handler,
@@ -34,6 +34,7 @@ async fn main() -> Result<(), AppError> {
         .route("/auth/login/finish", post(handler::finish_login))
         .route("/auth/refresh", post(handler::refresh))
         .route("/auth/logout", post(handler::logout))
+        .route("auth/public-key", get(handler::get_public_key))
         .with_state(state)
         .layer(TraceLayer::new_for_http())
         .layer(cors_layer);

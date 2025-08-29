@@ -86,6 +86,10 @@ impl JwtService {
         }
     }
 
+    pub fn get_public_key_base64(&self) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(&self.public_key)
+    }
+
     pub fn generate_token_pair(
         &self,
         user_id: Uuid,

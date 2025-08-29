@@ -16,3 +16,10 @@ pub struct TokenResponse {
     pub message: String,
     pub access_token: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct PublickKeyResponse {
+    pub public_key: String,
+    pub algorithm: String,
+    pub key_type: String,
+}

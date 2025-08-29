@@ -14,7 +14,7 @@ use crate::{
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
-            response::{BeginResponse, MessageResponse, TokenResponse},
+            response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
         },
         model::WebAuthnSession,
         repo::AuthRepository,
@@ -186,6 +186,16 @@ impl AuthService {
 
         Ok(MessageResponse {
             message: String::from("Logout completed successfully!"),
+        })
+    }
+
+    pub fn get_public_key_base64(&self) -> Result<PublickKeyResponse, AppError> {
+        let public_key = self.jwt_service.get_public_key_base64();
+
+        Ok(PublickKeyResponse {
+            public_key,
+            algorithm: String::from("Ed25519"),
+            key_type: String::from("PASETO_v4_public"),
         })
     }
 

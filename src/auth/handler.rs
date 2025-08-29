@@ -7,7 +7,7 @@ use crate::{
     app::{AppError, AppState},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
-        response::{BeginResponse, MessageResponse, TokenResponse},
+        response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
     },
 };
 
@@ -79,4 +79,11 @@ pub async fn logout(
     let updated_jar = jar.add(clear_cookie);
 
     Ok((updated_jar, Json(response)))
+}
+
+pub async fn get_public_key(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<PublickKeyResponse>, AppError> {
+    let response = state.auth_service.get_public_key_base64()?;
+    Ok(Json(response))
 }
