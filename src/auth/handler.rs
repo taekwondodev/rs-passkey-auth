@@ -11,6 +11,22 @@ use crate::{
     },
 };
 
+/// Begin user registration
+///
+/// Initiates the WebAuthn registration process for a new user.
+/// Returns challenge options that the client needs to use for credential creation.
+#[utoipa::path(
+    post,
+    path = "/auth/register/begin",
+    tag = "Authentication",
+    request_body = BeginRequest,
+    responses(
+        (status = 200, description = "Registration process started successfully", body = BeginResponse),
+        (status = 400, description = "Invalid request data", body = crate::app::error::ErrorResponse),
+        (status = 409, description = "User already exists", body = crate::app::error::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn begin_register(
     State(state): State<Arc<AppState>>,
     Json(request): Json<BeginRequest>,
@@ -19,6 +35,22 @@ pub async fn begin_register(
     Ok(Json(response))
 }
 
+/// Finish user registration
+///
+/// Completes the WebAuthn registration process by verifying the client's credential
+/// and storing it in the database.
+#[utoipa::path(
+    post,
+    path = "/auth/register/finish",
+    tag = "Authentication",
+    request_body = FinishRequest,
+    responses(
+        (status = 200, description = "Registration completed successfully!", body = MessageResponse),
+        (status = 400, description = "Invalid request data or credentials", body = crate::app::error::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::app::error::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn finish_register(
     State(state): State<Arc<AppState>>,
     Json(request): Json<FinishRequest>,
@@ -27,6 +59,22 @@ pub async fn finish_register(
     Ok(Json(response))
 }
 
+/// Begin user login
+///
+/// Initiates the WebAuthn authentication process for an existing user.
+/// Returns challenge options for credential verification.
+#[utoipa::path(
+    post,
+    path = "/auth/login/begin",
+    tag = "Authentication",
+    request_body = BeginRequest,
+    responses(
+        (status = 200, description = "Login process started successfully", body = BeginResponse),
+        (status = 400, description = "Invalid request data", body = crate::app::error::ErrorResponse),
+        (status = 404, description = "User not found", body = crate::app::error::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn begin_login(
     State(state): State<Arc<AppState>>,
     Json(request): Json<BeginRequest>,
@@ -35,6 +83,23 @@ pub async fn begin_login(
     Ok(Json(response))
 }
 
+/// Finish user login
+///
+/// Completes the WebAuthn authentication process and returns access tokens.
+/// Sets a refresh token cookie for subsequent token refresh operations.
+#[utoipa::path(
+    post,
+    path = "/auth/login/finish",
+    tag = "Authentication",
+    request_body = FinishRequest,
+    responses(
+        (status = 200, description = "Login completed successfully!", body = TokenResponse),
+        (status = 400, description = "Invalid credentials", body = crate::app::error::ErrorResponse),
+        (status = 401, description = "Authentication failed", body = crate::app::error::ErrorResponse),
+        (status = 404, description = "User or session not found", body = crate::app::error::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn finish_login(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -50,6 +115,19 @@ pub async fn finish_login(
     Ok((updated_jar, Json(response)))
 }
 
+/// Refresh access token
+///
+/// Uses the refresh token from cookies to generate a new access token.
+#[utoipa::path(
+    post,
+    path = "/auth/refresh",
+    tag = "Authentication",
+    responses(
+        (status = 200, description = "Refresh completed successfully!", body = TokenResponse),
+        (status = 401, description = "Invalid or expired refresh token", body = crate::app::error::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn refresh(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -65,6 +143,18 @@ pub async fn refresh(
     Ok((updated_jar, Json(response)))
 }
 
+/// Logout user
+///
+/// Invalidates the current refresh token and clears authentication cookies.
+#[utoipa::path(
+    post,
+    path = "/auth/logout",
+    tag = "Authentication",
+    responses(
+        (status = 200, description = "Logout completed successfully!", body = MessageResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn logout(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
@@ -81,6 +171,18 @@ pub async fn logout(
     Ok((updated_jar, Json(response)))
 }
 
+/// Get public key
+///
+/// Returns the public key used for JWT token verification in PASETO format.
+#[utoipa::path(
+    get,
+    path = "/auth/public-key",
+    tag = "Authentication",
+    responses(
+        (status = 200, description = "Public key retrieved successfully", body = PublickKeyResponse),
+        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
+    )
+)]
 pub async fn get_public_key(
     State(state): State<Arc<AppState>>,
 ) -> Result<Json<PublickKeyResponse>, AppError> {

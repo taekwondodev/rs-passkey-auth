@@ -1,7 +1,6 @@
 use std::fmt::{self};
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
-use serde_json::json;
 
 #[derive(Debug)]
 pub enum AppError {
@@ -10,6 +9,14 @@ pub enum AppError {
     AlreadyExists(String),
     Unauthorized(String),
     BadRequest(String),
+}
+
+#[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ErrorResponse {
+    #[schema(example = "bad_request")]
+    pub r#type: String,
+    #[schema(example = "Username must be at least 3 characters")]
+    pub message: String,
 }
 
 impl fmt::Display for AppError {
@@ -44,12 +51,10 @@ impl IntoResponse for AppError {
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
         };
 
-        let body = Json(json!({
-            "error": {
-                "type": error_type,
-                "message": message
-            }
-        }));
+        let body = Json(ErrorResponse {
+            r#type: error_type.to_string(),
+            message,
+        });
 
         (status, body).into_response()
     }

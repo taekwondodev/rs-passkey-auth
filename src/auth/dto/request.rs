@@ -1,10 +1,13 @@
 use serde::Deserialize;
+use utoipa::ToSchema;
 
 use crate::app::AppError;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct BeginRequest {
+    #[schema(example = "john_doe", min_length = 3)]
     pub username: String,
+    #[schema(example = "admin")]
     pub role: Option<String>,
 }
 
@@ -15,10 +18,13 @@ impl BeginRequest {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct FinishRequest {
+    #[schema(example = "john_doe")]
     pub username: String,
+    #[schema(example = "550e8400-e29b-41d4-a716-446655440000")]
     pub session_id: String,
+    #[schema(example = json!({"id": "AQIDBAUGBwgJCgsMDQ4PEA", "rawId": "AQIDBAUGBwgJCgsMDQ4PEA", "type": "public-key"}))]
     pub credentials: serde_json::Value,
 }
 

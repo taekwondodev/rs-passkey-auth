@@ -31,3 +31,6 @@ axum-extra = { version = "0.10.1", features = ["cookie"] }
 time = { version = "0.3.41", features = ["macros"] }
 redis = { version = "0.32.5", features = ["tokio-comp", "connection-manager"] }
 ed25519-dalek = "2.2.0"
+utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-axum = "0.2.0"
+utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }

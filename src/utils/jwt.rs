@@ -125,7 +125,7 @@ impl JwtService {
             token_type: TokenType::Refresh,
             sub: user_id.to_string(),
             username: username.to_string(),
-            role: role,
+            role,
             jti: Some(Self::generate_jti()),
             iat: now.to_rfc3339(),
             exp: refresh_exp.to_rfc3339(),

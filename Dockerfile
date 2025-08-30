@@ -11,9 +11,9 @@ RUN apk add --no-cache \
     git \
     lld \
     musl-dev \
-    pkgconfig \
     openssl-dev \
-    openssl-libs-static
+    openssl-libs-static \
+    pkgconfig
 
 COPY Cargo.toml Cargo.lock ./
 
