@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use chrono::Utc;
 use deadpool_postgres::Pool;
 use uuid::Uuid;
@@ -8,71 +7,16 @@ use crate::{
     auth::model::{User, WebAuthnSession},
 };
 
-#[async_trait]
-pub trait AuthRepository: Send + Sync {
-    async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError>;
-    async fn get_user_by_username(&self, username: &str) -> Result<User, AppError>;
-    async fn activate_user(&self, username: &str) -> Result<(), AppError>;
-    async fn create_webauthn_session(
-        &self,
-        user_id: Uuid,
-        data: serde_json::Value,
-        purpose: &str,
-    ) -> Result<Uuid, AppError>;
-    async fn get_webauthn_session(
-        &self,
-        id: Uuid,
-        purpose: &str,
-    ) -> Result<WebAuthnSession, AppError>;
-    async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError>;
-    async fn create_credential(
-        &self,
-        user_id: Uuid,
-        passkey: &webauthn_rs::prelude::Passkey,
-    ) -> Result<(), AppError>;
-    async fn get_credential_by_user(
-        &self,
-        user_id: Uuid,
-    ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError>;
-    async fn update_credential(&self, cred_id: &[u8], new_counter: u32) -> Result<(), AppError>;
-}
-
-pub struct PgRepository {
+pub struct AuthRepository {
     db: Pool,
 }
 
-impl PgRepository {
+impl AuthRepository {
     pub fn new(db: Pool) -> Self {
         Self { db }
     }
 
-    fn row_to_user(row: &tokio_postgres::Row) -> Result<User, AppError> {
-        Ok(User {
-            id: row.try_get("id")?,
-            username: row.try_get("username")?,
-            role: row.try_get("role")?,
-            status: row.try_get("status")?,
-            created_at: row.try_get("created_at")?,
-            updated_at: row.try_get("updated_at")?,
-            is_active: row.try_get("is_active")?,
-        })
-    }
-
-    fn row_to_webauthn_session(row: &tokio_postgres::Row) -> Result<WebAuthnSession, AppError> {
-        Ok(WebAuthnSession {
-            id: row.try_get("id")?,
-            user_id: row.try_get("user_id")?,
-            data: row.try_get("data")?,
-            purpose: row.try_get("purpose")?,
-            created_at: row.try_get("created_at")?,
-            expires_at: row.try_get("expires_at")?,
-        })
-    }
-}
-
-#[async_trait]
-impl AuthRepository for PgRepository {
-    async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError> {
+    pub async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError> {
         let client = &self.db.get().await?;
 
         match self.get_user_by_username(&username).await {
@@ -108,7 +52,7 @@ impl AuthRepository for PgRepository {
         Self::row_to_user(&row)
     }
 
-    async fn get_user_by_username(&self, username: &str) -> Result<User, AppError> {
+    pub async fn get_user_by_username(&self, username: &str) -> Result<User, AppError> {
         let client = &self.db.get().await?;
 
         match client
@@ -120,7 +64,7 @@ impl AuthRepository for PgRepository {
         }
     }
 
-    async fn activate_user(&self, username: &str) -> Result<(), AppError> {
+    pub async fn activate_user(&self, username: &str) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client
@@ -133,7 +77,7 @@ impl AuthRepository for PgRepository {
         Ok(())
     }
 
-    async fn create_webauthn_session(
+    pub async fn create_webauthn_session(
         &self,
         user_id: Uuid,
         data: serde_json::Value,
@@ -151,7 +95,7 @@ impl AuthRepository for PgRepository {
         Ok(row.get("id"))
     }
 
-    async fn get_webauthn_session(
+    pub async fn get_webauthn_session(
         &self,
         id: Uuid,
         purpose: &str,
@@ -170,7 +114,7 @@ impl AuthRepository for PgRepository {
         }
     }
 
-    async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError> {
+    pub async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client
@@ -180,7 +124,7 @@ impl AuthRepository for PgRepository {
         Ok(())
     }
 
-    async fn create_credential(
+    pub async fn create_credential(
         &self,
         user_id: Uuid,
         passkey: &webauthn_rs::prelude::Passkey,
@@ -198,7 +142,7 @@ impl AuthRepository for PgRepository {
         Ok(())
     }
 
-    async fn get_credential_by_user(
+    pub async fn get_credential_by_user(
         &self,
         user_id: Uuid,
     ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError> {
@@ -221,7 +165,11 @@ impl AuthRepository for PgRepository {
         Ok(passkeys)
     }
 
-    async fn update_credential(&self, cred_id: &[u8], new_counter: u32) -> Result<(), AppError> {
+    pub async fn update_credential(
+        &self,
+        cred_id: &[u8],
+        new_counter: u32,
+    ) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
         client
@@ -234,5 +182,28 @@ impl AuthRepository for PgRepository {
             .await?;
 
         Ok(())
+    }
+
+    fn row_to_user(row: &tokio_postgres::Row) -> Result<User, AppError> {
+        Ok(User {
+            id: row.try_get("id")?,
+            username: row.try_get("username")?,
+            role: row.try_get("role")?,
+            status: row.try_get("status")?,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+            is_active: row.try_get("is_active")?,
+        })
+    }
+
+    fn row_to_webauthn_session(row: &tokio_postgres::Row) -> Result<WebAuthnSession, AppError> {
+        Ok(WebAuthnSession {
+            id: row.try_get("id")?,
+            user_id: row.try_get("user_id")?,
+            data: row.try_get("data")?,
+            purpose: row.try_get("purpose")?,
+            created_at: row.try_get("created_at")?,
+            expires_at: row.try_get("expires_at")?,
+        })
     }
 }

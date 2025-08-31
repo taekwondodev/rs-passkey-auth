@@ -24,14 +24,14 @@ use crate::{
 
 pub struct AuthService {
     webauthn: Webauthn,
-    auth_repo: Arc<dyn AuthRepository>,
+    auth_repo: Arc<AuthRepository>,
     jwt_service: Arc<JwtService>,
 }
 
 impl AuthService {
     pub fn new(
         webauthn: Webauthn,
-        auth_repo: Arc<dyn AuthRepository>,
+        auth_repo: Arc<AuthRepository>,
         jwt_service: Arc<JwtService>,
     ) -> Self {
         Self {
