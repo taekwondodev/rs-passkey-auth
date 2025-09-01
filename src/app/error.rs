@@ -2,6 +2,28 @@ use std::fmt::{self};
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorType {
+    InternalServerError,
+    NotFound,
+    AlreadyExists,
+    Unauthorized,
+    BadRequest,
+}
+
+impl ErrorType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ErrorType::InternalServerError => "internal_server_error",
+            ErrorType::NotFound => "not_found",
+            ErrorType::AlreadyExists => "already_exists",
+            ErrorType::Unauthorized => "unauthorized",
+            ErrorType::BadRequest => "bad_request",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum AppError {
     InternalServer(String),
@@ -14,7 +36,7 @@ pub enum AppError {
 #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
     #[schema(example = "bad_request")]
-    pub r#type: String,
+    pub r#type: ErrorType,
     #[schema(example = "Username must be at least 3 characters")]
     pub message: String,
 }
@@ -38,21 +60,29 @@ impl IntoResponse for AppError {
         let (status, error_type, message) = match self {
             AppError::InternalServer(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "internal_server_error",
+                ErrorType::InternalServerError,
                 self.to_string(),
             ),
-            AppError::NotFound(_) => (StatusCode::NOT_FOUND, "not_found", self.to_string()),
-            AppError::AlreadyExists(_) => {
-                (StatusCode::CONFLICT, "already_exists", self.to_string())
-            }
-            AppError::Unauthorized(_) => {
-                (StatusCode::UNAUTHORIZED, "unauthorized", self.to_string())
-            }
-            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, "bad_request", self.to_string()),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorType::NotFound, self.to_string()),
+            AppError::AlreadyExists(_) => (
+                StatusCode::CONFLICT,
+                ErrorType::AlreadyExists,
+                self.to_string(),
+            ),
+            AppError::Unauthorized(_) => (
+                StatusCode::UNAUTHORIZED,
+                ErrorType::Unauthorized,
+                self.to_string(),
+            ),
+            AppError::BadRequest(_) => (
+                StatusCode::BAD_REQUEST,
+                ErrorType::BadRequest,
+                self.to_string(),
+            ),
         };
 
         let body = Json(ErrorResponse {
-            r#type: error_type.to_string(),
+            r#type: error_type,
             message,
         });
 
