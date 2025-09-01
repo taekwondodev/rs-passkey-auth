@@ -64,6 +64,21 @@ impl AuthRepository {
         }
     }
 
+    pub async fn get_active_user(&self, username: &str) -> Result<User, AppError> {
+        let client = &self.db.get().await?;
+
+        match client
+            .query_opt(
+                "SELECT * FROM users WHERE username = $1 AND status = 'active'",
+                &[&username],
+            )
+            .await?
+        {
+            Some(row) => Self::row_to_user(&row),
+            None => Err(AppError::NotFound(String::from("Username not found"))),
+        }
+    }
+
     pub async fn activate_user(&self, username: &str) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 

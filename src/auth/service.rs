@@ -91,7 +91,7 @@ impl AuthService {
     pub async fn begin_login(&self, req: BeginRequest) -> Result<BeginResponse, AppError> {
         req.validate()?;
 
-        let user = self.auth_repo.get_user_by_username(&req.username).await?;
+        let user = self.auth_repo.get_active_user(&req.username).await?;
         let passkey = self.auth_repo.get_credential_by_user(user.id).await?;
         let (rcr, passkey_authentication) = self.webauthn.start_passkey_authentication(&passkey)?;
 

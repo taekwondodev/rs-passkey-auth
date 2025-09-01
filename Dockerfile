@@ -8,6 +8,7 @@ WORKDIR /app
 
 RUN apk add --no-cache \
     clang \
+    curl \
     git \
     lld \
     musl-dev \
