@@ -5,12 +5,12 @@ use webauthn_rs::{Webauthn, WebauthnBuilder};
 use crate::config::origin::OriginConfig;
 
 pub struct WebAuthnConfig {
-    pub rp_name: String,
+    pub rp_name: Box<str>,
 }
 
 impl WebAuthnConfig {
     pub fn from_env() -> Self {
-        let rp_name = env::var("WEBAUTHN_RP_NAME").unwrap();
+        let rp_name = env::var("WEBAUTHN_RP_NAME").unwrap().into_boxed_str();
 
         Self { rp_name }
     }

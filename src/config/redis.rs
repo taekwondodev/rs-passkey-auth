@@ -6,9 +6,9 @@ const REDIS_MAX_CONNECTIONS: u32 = 16;
 const CONNECTION_TIMEOUT: u64 = 5000;
 const RESPONSE_TIMEOUT: u64 = 3000;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct RedisConfig {
-    pub url: String,
+    pub url: Box<str>,
     pub max_connections: u32,
     pub connection_timeout: u64,
     pub response_timeout: u64,
@@ -16,7 +16,7 @@ pub struct RedisConfig {
 
 impl RedisConfig {
     pub fn from_env() -> Self {
-        let url = env::var("REDIS_URL").unwrap();
+        let url = env::var("REDIS_URL").unwrap().into_boxed_str();
         Self {
             url,
             max_connections: REDIS_MAX_CONNECTIONS,
@@ -26,7 +26,7 @@ impl RedisConfig {
     }
 
     pub async fn create_conn_manager(&self) -> ConnectionManager {
-        let client = Client::open(self.url.as_str()).unwrap();
+        let client = Client::open(&*self.url).unwrap();
         ConnectionManager::new(client).await.unwrap()
     }
 }

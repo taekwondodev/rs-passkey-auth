@@ -45,7 +45,7 @@ impl CookieService {
         jar: &axum_extra::extract::CookieJar,
     ) -> Result<String, AppError> {
         jar.get(REFRESH_TOKEN_COOKIE_NAME)
-            .map(|cookie| String::from(cookie.value()))
+            .map(|cookie| cookie.value().to_owned())
             .ok_or_else(|| {
                 AppError::Unauthorized(String::from("Refresh token not found in cookies"))
             })

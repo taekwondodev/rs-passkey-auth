@@ -5,7 +5,7 @@ use tokio_postgres::NoTls;
 
 const DB_MAX_SIZE: usize = 16;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct DbConfig {
     pub host: String,
     pub port: u16,

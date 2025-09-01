@@ -106,7 +106,7 @@ impl JwtService {
         &self,
         user_id: Uuid,
         username: &str,
-        role: Option<String>,
+        role: Option<&str>,
     ) -> TokenPair {
         let now = Utc::now();
         let access_exp = now + self.access_token_duration;
@@ -116,7 +116,7 @@ impl JwtService {
             token_type: TokenType::Access,
             sub: user_id.to_string(),
             username: username.to_string(),
-            role: role.clone(),
+            role: role.map(|s| s.to_owned()),
             jti: None,
             iat: now.to_rfc3339(),
             exp: access_exp.to_rfc3339(),
@@ -125,7 +125,7 @@ impl JwtService {
             token_type: TokenType::Refresh,
             sub: user_id.to_string(),
             username: username.to_string(),
-            role,
+            role: role.map(|s| s.to_owned()),
             jti: Some(Self::generate_jti()),
             iat: now.to_rfc3339(),
             exp: refresh_exp.to_rfc3339(),

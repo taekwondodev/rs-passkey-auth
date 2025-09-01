@@ -132,9 +132,9 @@ impl AuthService {
 
         self.cleanup_session(session_id);
 
-        let token_pair = self
-            .jwt_service
-            .generate_token_pair(user.id, &user.username, user.role);
+        let token_pair =
+            self.jwt_service
+                .generate_token_pair(user.id, &user.username, user.role.as_deref());
 
         Ok((
             TokenResponse {
@@ -145,21 +145,20 @@ impl AuthService {
         ))
     }
 
-    pub async fn refresh(
-        &self,
-        refresh_token: String,
-    ) -> Result<(TokenResponse, String), AppError> {
+    pub async fn refresh(&self, refresh_token: &str) -> Result<(TokenResponse, String), AppError> {
         let claims = self
             .jwt_service
-            .validate(TokenType::Refresh, &refresh_token)
+            .validate(TokenType::Refresh, refresh_token)
             .await?;
         self.jwt_service
             .blacklist(&claims.jti.unwrap(), claims.exp)
             .await?;
 
-        let token_pair =
-            self.jwt_service
-                .generate_token_pair(claims.sub, &claims.username, claims.role);
+        let token_pair = self.jwt_service.generate_token_pair(
+            claims.sub,
+            &claims.username,
+            claims.role.as_deref(),
+        );
         Ok((
             TokenResponse {
                 message: String::from("Refresh completed successfully!"),
@@ -169,11 +168,11 @@ impl AuthService {
         ))
     }
 
-    pub async fn logout(&self, refresh_token: String) -> Result<MessageResponse, AppError> {
+    pub async fn logout(&self, refresh_token: &str) -> Result<MessageResponse, AppError> {
         if !refresh_token.is_empty() {
             if let Ok(claims) = self
                 .jwt_service
-                .validate(TokenType::Access, &refresh_token)
+                .validate(TokenType::Access, refresh_token)
                 .await
             {
                 if let Err(e) = self

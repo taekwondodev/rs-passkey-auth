@@ -11,7 +11,7 @@ const ALLOW_CREDENTIALS: bool = true;
 const MAX_AGE: std::time::Duration = std::time::Duration::from_secs(86400);
 const VARY_HEADERS: [http::HeaderName; 1] = [http::header::ORIGIN];
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct OriginConfig {
     pub frontend_origin: String,
     pub frontend_url: Url,
