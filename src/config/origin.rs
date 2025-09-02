@@ -15,7 +15,7 @@ const VARY_HEADERS: [http::HeaderName; 1] = [http::header::ORIGIN];
 pub struct OriginConfig {
     pub frontend_origin: String,
     pub frontend_url: Url,
-    pub backend_domain: String,
+    pub backend_domain: Box<str>,
 }
 
 impl OriginConfig {
@@ -25,12 +25,12 @@ impl OriginConfig {
 
         let _backend_url = env::var("URL_BACKEND").unwrap();
         let backend_url = Url::parse(&_backend_url).unwrap();
-        let backend_domain = backend_url.host_str().unwrap().to_string();
+        let backend_domain = backend_url.host_str().unwrap();
 
         Self {
             frontend_origin,
             frontend_url,
-            backend_domain,
+            backend_domain: backend_domain.into(),
         }
     }
 
@@ -40,10 +40,6 @@ impl OriginConfig {
 
     pub fn rp_origin(&self) -> &Url {
         &self.frontend_url
-    }
-
-    pub fn frontend_origin(&self) -> &str {
-        &self.frontend_origin
     }
 
     pub fn create_cors_layer(&self) -> CorsLayer {

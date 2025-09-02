@@ -14,15 +14,6 @@ pub struct User {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Credential {
-    pub id: Vec<u8>,
-    pub user_id: Uuid,
-    pub passkey: webauthn_rs::prelude::Passkey,
-    pub created_at: DateTime<Utc>,
-    pub last_used_at: Option<DateTime<Utc>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebAuthnSession {
     pub id: Uuid,
     pub user_id: Uuid,

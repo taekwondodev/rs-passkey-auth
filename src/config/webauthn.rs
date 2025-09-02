@@ -17,7 +17,7 @@ impl WebAuthnConfig {
 
     pub fn create_webauthn(&self, origin_config: &OriginConfig) -> Webauthn {
         let builder =
-            WebauthnBuilder::new(&origin_config.rp_id(), &origin_config.rp_origin()).unwrap();
+            WebauthnBuilder::new(origin_config.rp_id(), origin_config.rp_origin()).unwrap();
 
         builder.rp_name(&self.rp_name).build().unwrap()
     }

@@ -28,7 +28,7 @@ impl CookieService {
         Self {
             secure: is_https,
             same_site: Self::determine_same_site(is_https, is_local),
-            domain: Self::determine_cookie_domain(&origin_config, is_local),
+            domain: Self::determine_cookie_domain(origin_config, is_local),
             path: String::from(PATH),
             http_only: HTTP_ONLY,
             max_age: MAX_AGE,
@@ -92,12 +92,11 @@ impl CookieService {
             return None;
         }
 
-        let frontend_domain = origin_config.frontend_url.host_str().unwrap().to_string();
+        let frontend_domain = origin_config.frontend_url.host_str().unwrap();
+        let backend_domain = origin_config.rp_id();
 
-        let backend_domain = &origin_config.backend_domain;
-
-        if Self::are_subdomains_of_same(&frontend_domain, backend_domain) {
-            if let Some(base_domain) = Self::get_base_domain(&frontend_domain, backend_domain) {
+        if Self::are_subdomains_of_same(frontend_domain, backend_domain) {
+            if let Some(base_domain) = Self::get_base_domain(frontend_domain, backend_domain) {
                 return Some(format!(".{}", base_domain));
             }
         }
