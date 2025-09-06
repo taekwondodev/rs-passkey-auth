@@ -76,6 +76,7 @@ docker-compose up -d
 The service will be available at:
 - **API**: http://localhost:8080
 - **Swagger UI**: http://localhost:8080/swagger-ui
+- **Prometheus metrics**: http://localhost:8080/metrics
 
 ### Complete Documentation
 

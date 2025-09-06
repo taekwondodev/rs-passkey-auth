@@ -1,3 +1,7 @@
+use axum::{
+    Json,
+    extract::{FromRequest, Request},
+};
 use serde::Deserialize;
 use utoipa::ToSchema;
 
@@ -9,6 +13,27 @@ pub struct BeginRequest {
     pub username: String,
     #[schema(example = "admin")]
     pub role: Option<String>,
+}
+
+impl<S> FromRequest<S> for BeginRequest
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    fn from_request(
+        req: Request,
+        state: &S,
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
+        async move {
+            let Json(request) = Json::<BeginRequest>::from_request(req, state)
+                .await
+                .map_err(|_| AppError::BadRequest("Invalid JSON format".to_string()))?;
+
+            request.validate()?;
+            Ok(request)
+        }
+    }
 }
 
 impl BeginRequest {
@@ -26,6 +51,27 @@ pub struct FinishRequest {
     pub session_id: String,
     #[schema(example = json!({"id": "AQIDBAUGBwgJCgsMDQ4PEA", "rawId": "AQIDBAUGBwgJCgsMDQ4PEA", "type": "public-key"}))]
     pub credentials: serde_json::Value,
+}
+
+impl<S> FromRequest<S> for FinishRequest
+where
+    S: Send + Sync,
+{
+    type Rejection = AppError;
+
+    fn from_request(
+        req: Request,
+        state: &S,
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
+        async move {
+            let Json(request) = Json::<FinishRequest>::from_request(req, state)
+                .await
+                .map_err(|_| AppError::BadRequest("Invalid JSON format".to_string()))?;
+
+            request.validate()?;
+            Ok(request)
+        }
+    }
 }
 
 impl FinishRequest {

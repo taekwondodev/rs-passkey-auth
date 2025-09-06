@@ -1,3 +1,4 @@
+use axum::{Json, response::IntoResponse};
 use serde::Serialize;
 use utoipa::ToSchema;
 
@@ -9,10 +10,22 @@ pub struct BeginResponse {
     pub session_id: String,
 }
 
+impl IntoResponse for BeginResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct MessageResponse {
     #[schema(example = "Operation completed successfully")]
     pub message: String,
+}
+
+impl IntoResponse for MessageResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
 }
 
 #[derive(Debug, Serialize, ToSchema)]
@@ -25,6 +38,12 @@ pub struct TokenResponse {
     pub access_token: String,
 }
 
+impl IntoResponse for TokenResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
+}
+
 #[derive(Debug, Serialize, ToSchema)]
 pub struct PublickKeyResponse {
     #[schema(example = "MCowBQYDK2VwAyEA11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo")]
@@ -33,4 +52,10 @@ pub struct PublickKeyResponse {
     pub algorithm: String,
     #[schema(example = "PASETO_v4_public")]
     pub key_type: String,
+}
+
+impl IntoResponse for PublickKeyResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
 }

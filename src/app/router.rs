@@ -5,7 +5,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    app::{AppState, error::ErrorResponse},
+    app::{AppState, error::ErrorResponse, metrics},
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
@@ -26,6 +26,7 @@ use crate::{
         handler::refresh,
         handler::logout,
         handler::get_public_key,
+        metrics::metrics_handler,
     ),
     components(
         schemas(
@@ -39,7 +40,8 @@ use crate::{
         )
     ),
     tags(
-        (name = "Authentication", description = "WebAuthn-based authentication endpoints")
+        (name = "Authentication", description = "WebAuthn-based authentication endpoints"),
+         (name = "Monitoring", description = "Prometheus metrics endpoint")
     ),
     info(
         title = "rs-passkey-auth API",
@@ -66,6 +68,8 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
         .split_for_parts();
 
     router
+        .route("/metrics", get(metrics::metrics_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
+        .layer(metrics::create_prometheus_layer())
         .layer(http_trace_layer!())
 }

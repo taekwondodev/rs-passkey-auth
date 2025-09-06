@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use axum::{Json, extract::State};
+use axum::extract::State;
 use axum_extra::extract::CookieJar;
 
 use crate::{
-    app::{AppError, AppState},
+    app::{AppError, AppState, metrics},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
         response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
@@ -29,10 +29,12 @@ use crate::{
 )]
 pub async fn begin_register(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<BeginRequest>,
-) -> Result<Json<BeginResponse>, AppError> {
-    let response = state.auth_service.begin_register(request).await?;
-    Ok(Json(response))
+    request: BeginRequest,
+) -> Result<BeginResponse, AppError> {
+    let result = state.auth_service.begin_register(request).await;
+    metrics::track_registration_attempt(result.is_ok());
+    let response = result?;
+    Ok(response)
 }
 
 /// Finish user registration
@@ -53,10 +55,12 @@ pub async fn begin_register(
 )]
 pub async fn finish_register(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<FinishRequest>,
-) -> Result<Json<MessageResponse>, AppError> {
-    let response = state.auth_service.finish_register(request).await?;
-    Ok(Json(response))
+    request: FinishRequest,
+) -> Result<MessageResponse, AppError> {
+    let result = state.auth_service.finish_register(request).await;
+    metrics::track_registration_attempt(result.is_ok());
+    let response = result?;
+    Ok(response)
 }
 
 /// Begin user login
@@ -77,10 +81,12 @@ pub async fn finish_register(
 )]
 pub async fn begin_login(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<BeginRequest>,
-) -> Result<Json<BeginResponse>, AppError> {
-    let response = state.auth_service.begin_login(request).await?;
-    Ok(Json(response))
+    request: BeginRequest,
+) -> Result<BeginResponse, AppError> {
+    let result = state.auth_service.begin_login(request).await;
+    metrics::track_login_attempt(result.is_ok());
+    let response = result?;
+    Ok(response)
 }
 
 /// Finish user login
@@ -103,16 +109,18 @@ pub async fn begin_login(
 pub async fn finish_login(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
-    Json(request): Json<FinishRequest>,
-) -> Result<(CookieJar, Json<TokenResponse>), AppError> {
-    let (response, refresh_token) = state.auth_service.finish_login(request).await?;
+    request: FinishRequest,
+) -> Result<(CookieJar, TokenResponse), AppError> {
+    let result = state.auth_service.finish_login(request).await;
+    metrics::track_login_attempt(result.is_ok());
+    let (response, refresh_token) = result?;
 
     let cookie = state
         .cookie_service
         .create_refresh_token_cookie(&refresh_token);
     let updated_jar = jar.add(cookie);
 
-    Ok((updated_jar, Json(response)))
+    Ok((updated_jar, response))
 }
 
 /// Refresh access token
@@ -131,16 +139,18 @@ pub async fn finish_login(
 pub async fn refresh(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
-) -> Result<(CookieJar, Json<TokenResponse>), AppError> {
+) -> Result<(CookieJar, TokenResponse), AppError> {
     let refresh_token = state.cookie_service.get_refresh_token_from_jar(&jar)?;
-    let (response, new_refresh_token) = state.auth_service.refresh(refresh_token.as_str()).await?;
+    let result = state.auth_service.refresh(refresh_token.as_str()).await;
+    metrics::track_token_operation("refresh", result.is_ok());
+    let (response, new_refresh_token) = result?;
 
     let cookie = state
         .cookie_service
         .create_refresh_token_cookie(&new_refresh_token);
     let updated_jar = jar.add(cookie);
 
-    Ok((updated_jar, Json(response)))
+    Ok((updated_jar, response))
 }
 
 /// Logout user
@@ -158,17 +168,19 @@ pub async fn refresh(
 pub async fn logout(
     jar: CookieJar,
     State(state): State<Arc<AppState>>,
-) -> Result<(CookieJar, Json<MessageResponse>), AppError> {
+) -> Result<(CookieJar, MessageResponse), AppError> {
     let refresh_token = state
         .cookie_service
         .get_refresh_token_from_jar(&jar)
         .unwrap_or_default();
-    let response = state.auth_service.logout(refresh_token.as_str()).await?;
+    let result = state.auth_service.logout(refresh_token.as_str()).await;
+    metrics::track_token_operation("logout", result.is_ok());
+    let response = result?;
 
     let clear_cookie = state.cookie_service.clear_refresh_token_cookie();
     let updated_jar = jar.add(clear_cookie);
 
-    Ok((updated_jar, Json(response)))
+    Ok((updated_jar, response))
 }
 
 /// Get public key
@@ -185,7 +197,9 @@ pub async fn logout(
 )]
 pub async fn get_public_key(
     State(state): State<Arc<AppState>>,
-) -> Result<Json<PublickKeyResponse>, AppError> {
-    let response = state.auth_service.get_public_key_base64()?;
-    Ok(Json(response))
+) -> Result<PublickKeyResponse, AppError> {
+    let result = state.auth_service.get_public_key_base64();
+    metrics::track_token_operation("get_public_key", result.is_ok());
+    let response = result?;
+    Ok(response)
 }
