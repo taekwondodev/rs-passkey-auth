@@ -1,5 +1,5 @@
 use chrono::Utc;
-use deadpool_postgres::Pool;
+use deadpool_postgres::{Pool, Transaction};
 use uuid::Uuid;
 
 use crate::{
@@ -64,32 +64,71 @@ impl AuthRepository {
         }
     }
 
-    pub async fn get_active_user(&self, username: &str) -> Result<User, AppError> {
+    pub async fn get_user_and_session(
+        &self,
+        session_id: Uuid,
+        username: &str,
+        purpose: &str,
+    ) -> Result<(User, WebAuthnSession), AppError> {
         let client = &self.db.get().await?;
 
         match client
             .query_opt(
-                "SELECT * FROM users WHERE username = $1 AND status = 'active'",
-                &[&username],
+                "SELECT
+                        u.id, u.username, u.role, u.status, u.created_at, u.updated_at, u.is_active,
+                        ws.id as session_id, ws.user_id, ws.data, ws.purpose,
+                        ws.created_at as session_created_at, ws.expires_at
+                     FROM users u
+                     INNER JOIN webauthn_sessions ws ON u.id = ws.user_id
+                     WHERE u.username = $1 AND ws.id = $2 AND ws.purpose = $3",
+                &[&username, &session_id, &purpose],
             )
             .await?
         {
-            Some(row) => Self::row_to_user(&row),
-            None => Err(AppError::NotFound(String::from("Username not found"))),
+            Some(row) => {
+                let user = Self::row_to_user(&row)?;
+                let session = Self::row_to_webauthn_session(&row)?;
+                Ok((user, session))
+            }
+            None => Err(AppError::NotFound(String::from(
+                "User or session not found",
+            ))),
         }
     }
 
-    pub async fn activate_user(&self, username: &str) -> Result<(), AppError> {
+    pub async fn get_active_user_with_credential(
+        &self,
+        username: &str,
+    ) -> Result<(User, Vec<webauthn_rs::prelude::Passkey>), AppError> {
         let client = &self.db.get().await?;
 
-        client
-            .execute(
-                "UPDATE users SET status = 'active' WHERE username = $1",
+        let rows = client
+            .query(
+                "SELECT
+                        u.id, u.username, u.role, u.status, u.created_at, u.updated_at, u.is_active,
+                        c.passkey
+                     FROM users u
+                     INNER JOIN credentials c ON u.id = c.user_id
+                     WHERE u.username = $1 AND u.status = 'active'",
                 &[&username],
             )
             .await?;
 
-        Ok(())
+        if rows.is_empty() {
+            return Err(AppError::NotFound(String::from(
+                "User or credentials not found",
+            )));
+        }
+
+        let user = Self::row_to_user(&rows[0])?;
+        let mut passkeys = Vec::new();
+        for row in rows {
+            let passkey_json: serde_json::Value = row.try_get("passkey")?;
+            let passkey: webauthn_rs::prelude::Passkey = serde_json::from_value(passkey_json)?;
+            passkeys.push(passkey);
+        }
+
+        Ok((user, passkeys))
     }
 
     pub async fn create_webauthn_session(
@@ -110,25 +149,6 @@ impl AuthRepository {
         Ok(row.get("id"))
     }
 
-    pub async fn get_webauthn_session(
-        &self,
-        id: Uuid,
-        purpose: &str,
-    ) -> Result<WebAuthnSession, AppError> {
-        let client = &self.db.get().await?;
-
-        match client
-            .query_opt(
-                "SELECT * FROM webauthn_sessions WHERE id = $1 AND purpose = $2",
-                &[&id, &purpose],
-            )
-            .await?
-        {
-            Some(row) => Self::row_to_webauthn_session(&row),
-            None => Err(AppError::NotFound(String::from("Session not found"))),
-        }
-    }
-
     pub async fn delete_webauthn_session(&self, id: Uuid) -> Result<(), AppError> {
         let client = &self.db.get().await?;
 
@@ -137,47 +157,6 @@ impl AuthRepository {
             .await?;
 
         Ok(())
-    }
-
-    pub async fn create_credential(
-        &self,
-        user_id: Uuid,
-        passkey: &webauthn_rs::prelude::Passkey,
-    ) -> Result<(), AppError> {
-        let client = &self.db.get().await?;
-        let passkey_json = serde_json::to_value(passkey)?;
-
-        client
-            .execute(
-                "INSERT INTO credentials (id, user_id, passkey) VALUES ($1, $2, $3)",
-                &[&passkey.cred_id().as_slice(), &user_id, &passkey_json],
-            )
-            .await?;
-
-        Ok(())
-    }
-
-    pub async fn get_credential_by_user(
-        &self,
-        user_id: Uuid,
-    ) -> Result<Vec<webauthn_rs::prelude::Passkey>, AppError> {
-        let client = &self.db.get().await?;
-
-        let rows = client
-            .query(
-                "SELECT passkey FROM credentials WHERE user_id = $1",
-                &[&user_id],
-            )
-            .await?;
-
-        let mut passkeys = Vec::new();
-        for row in rows {
-            let passkey_json: serde_json::Value = row.try_get("passkey")?;
-            let passkey: webauthn_rs::prelude::Passkey = serde_json::from_value(passkey_json)?;
-            passkeys.push(passkey);
-        }
-
-        Ok(passkeys)
     }
 
     pub async fn update_credential(
@@ -195,6 +174,49 @@ impl AuthRepository {
                 &[&(new_counter as i64), &cred_id],
             )
             .await?;
+
+        Ok(())
+    }
+
+    pub async fn complete_registration(
+        &self,
+        user_id: Uuid,
+        username: &str,
+        passkey: &webauthn_rs::prelude::Passkey,
+    ) -> Result<(), AppError> {
+        let mut client = self.db.get().await?;
+        let tx = client.transaction().await?;
+
+        self.create_credential(&tx, user_id, passkey).await?;
+        self.activate_user(&tx, username).await?;
+
+        tx.commit().await?;
+        Ok(())
+    }
+
+    async fn activate_user(&self, tx: &Transaction<'_>, username: &str) -> Result<(), AppError> {
+        tx.execute(
+            "UPDATE users SET status = 'active' WHERE username = $1",
+            &[&username],
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn create_credential(
+        &self,
+        tx: &Transaction<'_>,
+        user_id: Uuid,
+        passkey: &webauthn_rs::prelude::Passkey,
+    ) -> Result<(), AppError> {
+        let passkey_json = serde_json::to_value(passkey)?;
+
+        tx.execute(
+            "INSERT INTO credentials (id, user_id, passkey) VALUES ($1, $2, $3)",
+            &[&passkey.cred_id().as_slice(), &user_id, &passkey_json],
+        )
+        .await?;
 
         Ok(())
     }

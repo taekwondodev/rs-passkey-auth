@@ -9,6 +9,7 @@ CREATE TABLE users (
 );
 
 CREATE INDEX idx_user_username ON users (username);
+CREATE INDEX idx_users_username_status ON users (username, status);
 
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$

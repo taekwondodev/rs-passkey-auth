@@ -42,8 +42,6 @@ impl AuthService {
     }
 
     pub async fn begin_register(&self, req: BeginRequest) -> Result<BeginResponse, AppError> {
-        req.validate()?;
-
         let user = self
             .auth_repo
             .create_user(&req.username, req.role.as_deref())
@@ -62,8 +60,6 @@ impl AuthService {
     }
 
     pub async fn finish_register(&self, req: FinishRequest) -> Result<MessageResponse, AppError> {
-        req.validate()?;
-
         let (session_id, user, session) = self
             .get_user_and_session(&req.session_id, &req.username, "registration")
             .await?;
@@ -79,8 +75,9 @@ impl AuthService {
             .webauthn
             .finish_passkey_registration(&credentials, &passkey_registration)?;
 
-        self.auth_repo.create_credential(user.id, &passkey).await?;
-        self.auth_repo.activate_user(&user.username).await?;
+        self.auth_repo
+            .complete_registration(user.id, &user.username, &passkey)
+            .await?;
         self.cleanup_session(session_id);
 
         Ok(MessageResponse {
@@ -89,10 +86,10 @@ impl AuthService {
     }
 
     pub async fn begin_login(&self, req: BeginRequest) -> Result<BeginResponse, AppError> {
-        req.validate()?;
-
-        let user = self.auth_repo.get_active_user(&req.username).await?;
-        let passkey = self.auth_repo.get_credential_by_user(user.id).await?;
+        let (user, passkey) = self
+            .auth_repo
+            .get_active_user_with_credential(&req.username)
+            .await?;
         let (rcr, passkey_authentication) = self.webauthn.start_passkey_authentication(&passkey)?;
 
         let (session_data, opts) = self
@@ -107,8 +104,6 @@ impl AuthService {
         &self,
         req: FinishRequest,
     ) -> Result<(TokenResponse, String), AppError> {
-        req.validate()?;
-
         let (session_id, user, session) = self
             .get_user_and_session(&req.session_id, &req.username, "login")
             .await?;
@@ -241,12 +236,10 @@ impl AuthService {
         session_type: &str,
     ) -> Result<(Uuid, crate::auth::model::User, WebAuthnSession), AppError> {
         let session_id = Uuid::try_parse(session_id_str)?;
-        let user = self.auth_repo.get_user_by_username(username).await?;
-        let session = self
+        let (user, session) = self
             .auth_repo
-            .get_webauthn_session(session_id, session_type)
+            .get_user_and_session(session_id, username, session_type)
             .await?;
-
         Ok((session_id, user, session))
     }
 
