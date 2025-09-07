@@ -15,13 +15,9 @@ use rusty_paseto::{
     },
 };
 use serde::{Deserialize, Serialize};
-use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::{
-    app::AppError,
-    auth::dto::response::{HealthStatus, ServiceHealth},
-};
+use crate::{app::AppError, auth::dto::response::ServiceHealth, utils::health::check_redis_health};
 
 const ACCESS_TOKEN_DURATION: Duration = Duration::from_secs(5 * 60);
 const REFRESH_TOKEN_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
@@ -107,36 +103,13 @@ impl JwtService {
     }
 
     pub async fn check_redis(&self) -> ServiceHealth {
-        let start = std::time::Instant::now();
-
-        let result = timeout(Duration::from_secs(5), async {
+        check_redis_health(|| async {
             let mut conn = self.redis_manager.clone();
-
             use redis::AsyncCommands;
             let _: String = conn.ping().await?;
-            Ok::<(), redis::RedisError>(())
+            Ok(())
         })
-        .await;
-
-        let response_time = start.elapsed().as_millis() as u64;
-
-        match result {
-            Ok(Ok(())) => ServiceHealth {
-                status: HealthStatus::Healthy,
-                message: "Redis connection successful".to_string(),
-                response_time_ms: Some(response_time),
-            },
-            Ok(Err(e)) => ServiceHealth {
-                status: HealthStatus::Unhealthy,
-                message: format!("Redis error: {}", e),
-                response_time_ms: Some(response_time),
-            },
-            Err(_) => ServiceHealth {
-                status: HealthStatus::Unhealthy,
-                message: "Redis connection timeout".to_string(),
-                response_time_ms: None,
-            },
-        }
+        .await
     }
 
     pub fn generate_token_pair(
