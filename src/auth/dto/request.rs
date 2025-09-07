@@ -26,10 +26,7 @@ where
         state: &S,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         async move {
-            let Json(request) = Json::<BeginRequest>::from_request(req, state)
-                .await
-                .map_err(|_| AppError::BadRequest("Invalid JSON format".to_string()))?;
-
+            let Json(request) = Json::<BeginRequest>::from_request(req, state).await?;
             request.validate()?;
             Ok(request)
         }
@@ -64,10 +61,7 @@ where
         state: &S,
     ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
         async move {
-            let Json(request) = Json::<FinishRequest>::from_request(req, state)
-                .await
-                .map_err(|_| AppError::BadRequest("Invalid JSON format".to_string()))?;
-
+            let Json(request) = Json::<FinishRequest>::from_request(req, state).await?;
             request.validate()?;
             Ok(request)
         }

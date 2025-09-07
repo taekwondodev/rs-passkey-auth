@@ -125,3 +125,15 @@ impl From<uuid::Error> for AppError {
         AppError::BadRequest(value.to_string())
     }
 }
+
+impl From<axum::extract::rejection::JsonRejection> for AppError {
+    fn from(value: axum::extract::rejection::JsonRejection) -> Self {
+        AppError::BadRequest(value.to_string())
+    }
+}
+
+impl From<rusty_paseto::generic::GenericParserError> for AppError {
+    fn from(value: rusty_paseto::generic::GenericParserError) -> Self {
+        AppError::Unauthorized(value.to_string())
+    }
+}

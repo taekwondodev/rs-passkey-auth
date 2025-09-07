@@ -154,19 +154,11 @@ impl JwtService {
             TokenType::Access => {
                 let _key = Key::from(&self.public_key);
                 let key = PasetoAsymmetricPublicKey::<V4, Public>::from(&_key);
-                PasetoParser::<V4, Public>::default()
-                    .parse(token, &key)
-                    .map_err(|_| {
-                        AppError::Unauthorized(String::from("Invalid access token signature"))
-                    })?
+                PasetoParser::<V4, Public>::default().parse(token, &key)?
             }
             TokenType::Refresh => {
                 let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.symmetric_key));
-                PasetoParser::<V4, Local>::default()
-                    .parse(token, &key)
-                    .map_err(|_| {
-                        AppError::Unauthorized(String::from("Invalid refresh token signature"))
-                    })?
+                PasetoParser::<V4, Local>::default().parse(token, &key)?
             }
         };
 

@@ -1,4 +1,8 @@
-use axum::{routing::get, routing::post};
+use axum::{
+    extract::DefaultBodyLimit,
+    routing::{get, post},
+};
+use tower::ServiceBuilder;
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_axum::router::OpenApiRouter;
@@ -70,6 +74,10 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
     router
         .route("/metrics", get(metrics::metrics_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
-        .layer(metrics::create_prometheus_layer())
-        .layer(http_trace_layer!())
+        .layer(
+            ServiceBuilder::new()
+                .layer(DefaultBodyLimit::max(1024 * 1024))
+                .layer(http_trace_layer!())
+                .layer(metrics::create_prometheus_layer()),
+        )
 }
