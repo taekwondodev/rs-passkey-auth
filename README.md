@@ -12,6 +12,7 @@ A secure authentication service using WebAuthn passkeys and PASETO tokens, built
 - **Containerization**: Complete setup with Docker and Docker Compose
 - **Configurable CORS**: Support for multi-origin applications
 - **Structured Logging**: Complete operation tracing
+- **Monitoring**: Prometheus metrics for observabilit
 
 ## Tech Stack
 
@@ -22,6 +23,7 @@ A secure authentication service using WebAuthn passkeys and PASETO tokens, built
 - **PostgreSQL** - Primary database
 - **Redis** - Cache and session management
 - **Docker** - Containerization
+- **Prometheus** - Metrics and monitoring
 - **Swagger UI** - Interactive API documentation
 
 ## Prerequisites
