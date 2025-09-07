@@ -14,7 +14,10 @@ use crate::{
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
-            response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
+            response::{
+                BeginResponse, HealthChecks, HealthResponse, HealthStatus, MessageResponse,
+                PublickKeyResponse, TokenResponse,
+            },
         },
         model::WebAuthnSession,
         repo::AuthRepository,
@@ -192,6 +195,39 @@ impl AuthService {
             public_key,
             algorithm: String::from("Ed25519"),
             key_type: String::from("PASETO_v4_public"),
+        })
+    }
+
+    pub async fn check_health(&self) -> Result<HealthResponse, AppError> {
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        let (db_health, redis_health) =
+            tokio::join!(self.auth_repo.check_db(), self.jwt_service.check_redis(),);
+
+        if db_health.status == HealthStatus::Unhealthy
+            || redis_health.status == HealthStatus::Unhealthy
+        {
+            let mut error_details = Vec::new();
+
+            if db_health.status == HealthStatus::Unhealthy {
+                error_details.push(format!("Database: {}", db_health.message));
+            }
+
+            if redis_health.status == HealthStatus::Unhealthy {
+                error_details.push(format!("Redis: {}", redis_health.message));
+            }
+
+            return Err(AppError::ServiceUnavailable(format!(
+                "One or more services are unhealthy: {}",
+                error_details.join(", ")
+            )));
+        }
+
+        Ok(HealthResponse {
+            timestamp,
+            checks: HealthChecks {
+                database: db_health,
+                redis: redis_health,
+            },
         })
     }
 

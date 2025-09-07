@@ -59,3 +59,39 @@ impl IntoResponse for PublickKeyResponse {
         Json(self).into_response()
     }
 }
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct HealthResponse {
+    #[schema(example = "2024-01-01T12:00:00Z")]
+    pub timestamp: String,
+    pub checks: HealthChecks,
+}
+
+impl IntoResponse for HealthResponse {
+    fn into_response(self) -> axum::response::Response {
+        Json(self).into_response()
+    }
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct HealthChecks {
+    pub database: ServiceHealth,
+    pub redis: ServiceHealth,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct ServiceHealth {
+    #[schema(example = "healthy")]
+    pub status: HealthStatus,
+    #[schema(example = "Connected successfully")]
+    pub message: String,
+    #[schema(example = 150)]
+    pub response_time_ms: Option<u64>,
+}
+
+#[derive(Debug, Serialize, utoipa::ToSchema, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum HealthStatus {
+    Healthy,
+    Unhealthy,
+}

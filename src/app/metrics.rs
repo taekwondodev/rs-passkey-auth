@@ -19,6 +19,12 @@ lazy_static::lazy_static! {
         "Total number of JWT token operations",
         &["operation", "status"]
     ).unwrap();
+
+    pub static ref HEALTH_CHECKS: prometheus::CounterVec = prometheus::register_counter_vec!(
+        "health_check_requests_total",
+        "Total number of health check requests",
+        &["status"]
+    ).unwrap();
 }
 
 /// Get Prometheus metrics
@@ -65,4 +71,9 @@ pub fn track_token_operation(operation: &str, success: bool) {
     TOKEN_OPERATIONS
         .with_label_values(&[operation, status])
         .inc();
+}
+
+pub fn track_health_check(success: bool) {
+    let status = if success { "healthy" } else { "unhealthy" };
+    HEALTH_CHECKS.with_label_values(&[status]).inc();
 }

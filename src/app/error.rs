@@ -10,6 +10,7 @@ pub enum ErrorType {
     AlreadyExists,
     Unauthorized,
     BadRequest,
+    ServiceUnavailable,
 }
 
 impl ErrorType {
@@ -20,6 +21,7 @@ impl ErrorType {
             ErrorType::AlreadyExists => "already_exists",
             ErrorType::Unauthorized => "unauthorized",
             ErrorType::BadRequest => "bad_request",
+            ErrorType::ServiceUnavailable => "service_unavailable",
         }
     }
 }
@@ -31,6 +33,7 @@ pub enum AppError {
     AlreadyExists(String),
     Unauthorized(String),
     BadRequest(String),
+    ServiceUnavailable(String),
 }
 
 #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
@@ -49,6 +52,7 @@ impl fmt::Display for AppError {
             AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
             AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
             AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
+            AppError::ServiceUnavailable(msg) => write!(f, "Service unavailable: {}", msg),
         }
     }
 }
@@ -77,6 +81,11 @@ impl IntoResponse for AppError {
             AppError::BadRequest(_) => (
                 StatusCode::BAD_REQUEST,
                 ErrorType::BadRequest,
+                self.to_string(),
+            ),
+            AppError::ServiceUnavailable(_) => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                ErrorType::ServiceUnavailable,
                 self.to_string(),
             ),
         };

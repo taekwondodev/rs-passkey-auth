@@ -13,7 +13,10 @@ use crate::{
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
-            response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
+            response::{
+                BeginResponse, HealthChecks, HealthResponse, HealthStatus, MessageResponse,
+                PublickKeyResponse, ServiceHealth, TokenResponse,
+            },
         },
         handler,
     },
@@ -30,6 +33,7 @@ use crate::{
         handler::refresh,
         handler::logout,
         handler::get_public_key,
+        handler::healthz,
         metrics::metrics_handler,
     ),
     components(
@@ -41,11 +45,16 @@ use crate::{
             TokenResponse,
             PublickKeyResponse,
             ErrorResponse,
+            HealthResponse,
+            ServiceHealth,
+            HealthChecks,
+            HealthStatus,
         )
     ),
     tags(
         (name = "Authentication", description = "WebAuthn-based authentication endpoints"),
-         (name = "Monitoring", description = "Prometheus metrics endpoint")
+         (name = "Monitoring", description = "Prometheus metrics endpoint"),
+          (name = "Health", description = "Health check endpoints")
     ),
     info(
         title = "rs-passkey-auth API",
@@ -68,6 +77,7 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
         .route("/auth/refresh", post(handler::refresh))
         .route("/auth/logout", post(handler::logout))
         .route("/auth/public-key", get(handler::get_public_key))
+        .route("/healthz", get(handler::healthz))
         .with_state(state)
         .split_for_parts();
 

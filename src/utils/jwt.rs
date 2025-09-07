@@ -1,7 +1,7 @@
-use std::env;
+use std::{env, time::Duration};
 
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use ed25519_dalek::SigningKey;
 use redis::aio::ConnectionManager;
 use rusty_paseto::{
@@ -15,12 +15,16 @@ use rusty_paseto::{
     },
 };
 use serde::{Deserialize, Serialize};
+use tokio::time::timeout;
 use uuid::Uuid;
 
-use crate::app::AppError;
+use crate::{
+    app::AppError,
+    auth::dto::response::{HealthStatus, ServiceHealth},
+};
 
-const ACCESS_TOKEN_DURATION: Duration = Duration::minutes(5);
-const REFRESH_TOKEN_DURATION: Duration = Duration::days(1);
+const ACCESS_TOKEN_DURATION: Duration = Duration::from_secs(5 * 60);
+const REFRESH_TOKEN_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TokenClaims {
@@ -100,6 +104,39 @@ impl JwtService {
 
     pub fn get_public_key_base64(&self) -> String {
         BASE64_URL_SAFE_NO_PAD.encode(&self.public_key)
+    }
+
+    pub async fn check_redis(&self) -> ServiceHealth {
+        let start = std::time::Instant::now();
+
+        let result = timeout(Duration::from_secs(5), async {
+            let mut conn = self.redis_manager.clone();
+
+            use redis::AsyncCommands;
+            let _: String = conn.ping().await?;
+            Ok::<(), redis::RedisError>(())
+        })
+        .await;
+
+        let response_time = start.elapsed().as_millis() as u64;
+
+        match result {
+            Ok(Ok(())) => ServiceHealth {
+                status: HealthStatus::Healthy,
+                message: "Redis connection successful".to_string(),
+                response_time_ms: Some(response_time),
+            },
+            Ok(Err(e)) => ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: format!("Redis error: {}", e),
+                response_time_ms: Some(response_time),
+            },
+            Err(_) => ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: "Redis connection timeout".to_string(),
+                response_time_ms: None,
+            },
+        }
     }
 
     pub fn generate_token_pair(

@@ -7,7 +7,9 @@ use crate::{
     app::{AppError, AppState, metrics},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
-        response::{BeginResponse, MessageResponse, PublickKeyResponse, TokenResponse},
+        response::{
+            BeginResponse, HealthResponse, MessageResponse, PublickKeyResponse, TokenResponse,
+        },
     },
 };
 
@@ -31,10 +33,9 @@ pub async fn begin_register(
     State(state): State<Arc<AppState>>,
     request: BeginRequest,
 ) -> Result<BeginResponse, AppError> {
-    let result = state.auth_service.begin_register(request).await;
-    metrics::track_registration_attempt(result.is_ok());
-    let response = result?;
-    Ok(response)
+    let response = state.auth_service.begin_register(request).await;
+    metrics::track_registration_attempt(response.is_ok());
+    response
 }
 
 /// Finish user registration
@@ -57,10 +58,9 @@ pub async fn finish_register(
     State(state): State<Arc<AppState>>,
     request: FinishRequest,
 ) -> Result<MessageResponse, AppError> {
-    let result = state.auth_service.finish_register(request).await;
-    metrics::track_registration_attempt(result.is_ok());
-    let response = result?;
-    Ok(response)
+    let response = state.auth_service.finish_register(request).await;
+    metrics::track_registration_attempt(response.is_ok());
+    response
 }
 
 /// Begin user login
@@ -83,10 +83,9 @@ pub async fn begin_login(
     State(state): State<Arc<AppState>>,
     request: BeginRequest,
 ) -> Result<BeginResponse, AppError> {
-    let result = state.auth_service.begin_login(request).await;
-    metrics::track_login_attempt(result.is_ok());
-    let response = result?;
-    Ok(response)
+    let response = state.auth_service.begin_login(request).await;
+    metrics::track_login_attempt(response.is_ok());
+    response
 }
 
 /// Finish user login
@@ -173,14 +172,13 @@ pub async fn logout(
         .cookie_service
         .get_refresh_token_from_jar(&jar)
         .unwrap_or_default();
-    let result = state.auth_service.logout(refresh_token.as_str()).await;
-    metrics::track_token_operation("logout", result.is_ok());
-    let response = result?;
+    let response = state.auth_service.logout(refresh_token.as_str()).await;
+    metrics::track_token_operation("logout", response.is_ok());
 
     let clear_cookie = state.cookie_service.clear_refresh_token_cookie();
     let updated_jar = jar.add(clear_cookie);
 
-    Ok((updated_jar, response))
+    Ok((updated_jar, response?))
 }
 
 /// Get public key
@@ -198,8 +196,26 @@ pub async fn logout(
 pub async fn get_public_key(
     State(state): State<Arc<AppState>>,
 ) -> Result<PublickKeyResponse, AppError> {
-    let result = state.auth_service.get_public_key_base64();
-    metrics::track_token_operation("get_public_key", result.is_ok());
-    let response = result?;
-    Ok(response)
+    let response = state.auth_service.get_public_key_base64();
+    metrics::track_token_operation("get_public_key", response.is_ok());
+    response
+}
+
+/// Comprehensive health check
+///
+/// Checks the health of all critical services including database, Redis.
+/// Returns detailed status information and appropriate HTTP status codes.
+#[utoipa::path(
+    get,
+    path = "/healthz",
+    tag = "Health",
+    responses(
+        (status = 200, description = "All services are healthy", body = HealthResponse),
+        (status = 503, description = "One or more services are unhealthy", body = HealthResponse),
+    )
+)]
+pub async fn healthz(State(state): State<Arc<AppState>>) -> Result<HealthResponse, AppError> {
+    let response = state.auth_service.check_health().await;
+    metrics::track_health_check(response.is_ok());
+    response
 }

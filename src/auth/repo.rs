@@ -1,10 +1,16 @@
+use std::time::Duration;
+
 use chrono::Utc;
 use deadpool_postgres::{Pool, Transaction};
+use tokio::time::timeout;
 use uuid::Uuid;
 
 use crate::{
     app::AppError,
-    auth::model::{User, WebAuthnSession},
+    auth::{
+        dto::response::{HealthStatus, ServiceHealth},
+        model::{User, WebAuthnSession},
+    },
 };
 
 pub struct AuthRepository {
@@ -14,6 +20,37 @@ pub struct AuthRepository {
 impl AuthRepository {
     pub fn new(db: Pool) -> Self {
         Self { db }
+    }
+
+    pub async fn check_db(&self) -> ServiceHealth {
+        let start = std::time::Instant::now();
+
+        let result = timeout(Duration::from_secs(5), async {
+            let client = &self.db.get().await?;
+            client.query_one("SELECT 1 as health_check", &[]).await?;
+            Ok::<(), AppError>(())
+        })
+        .await;
+
+        let response_time = start.elapsed().as_millis() as u64;
+
+        match result {
+            Ok(Ok(())) => ServiceHealth {
+                status: HealthStatus::Healthy,
+                message: "Database connection successful".to_string(),
+                response_time_ms: Some(response_time),
+            },
+            Ok(Err(e)) => ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: format!("Database error: {}", e),
+                response_time_ms: Some(response_time),
+            },
+            Err(_) => ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: "Database connection timeout".to_string(),
+                response_time_ms: None,
+            },
+        }
     }
 
     pub async fn create_user(&self, username: &str, role: Option<&str>) -> Result<User, AppError> {
