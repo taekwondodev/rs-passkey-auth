@@ -20,23 +20,26 @@ use crate::{
             },
         },
         model::WebAuthnSession,
-        repo::AuthRepository,
+        traits::{AuthRepository, JwtService},
     },
-    utils::jwt::{JwtService, TokenType},
 };
 
-pub struct AuthService {
+pub struct AuthService<R, J>
+where
+    R: AuthRepository + 'static,
+    J: JwtService + 'static,
+{
     webauthn: Webauthn,
-    auth_repo: Arc<AuthRepository>,
-    jwt_service: Arc<JwtService>,
+    auth_repo: Arc<R>,
+    jwt_service: Arc<J>,
 }
 
-impl AuthService {
-    pub fn new(
-        webauthn: Webauthn,
-        auth_repo: Arc<AuthRepository>,
-        jwt_service: Arc<JwtService>,
-    ) -> Self {
+impl<R, J> AuthService<R, J>
+where
+    R: AuthRepository + 'static,
+    J: JwtService + 'static,
+{
+    pub fn new(webauthn: Webauthn, auth_repo: Arc<R>, jwt_service: Arc<J>) -> Self {
         Self {
             webauthn,
             auth_repo,
@@ -144,10 +147,7 @@ impl AuthService {
     }
 
     pub async fn refresh(&self, refresh_token: &str) -> Result<(TokenResponse, String), AppError> {
-        let claims = self
-            .jwt_service
-            .validate(TokenType::Refresh, refresh_token)
-            .await?;
+        let claims = self.jwt_service.validate_refresh(refresh_token).await?;
         self.jwt_service
             .blacklist(&claims.jti.unwrap(), claims.exp)
             .await?;
@@ -168,11 +168,7 @@ impl AuthService {
 
     pub async fn logout(&self, refresh_token: &str) -> Result<MessageResponse, AppError> {
         if !refresh_token.is_empty() {
-            if let Ok(claims) = self
-                .jwt_service
-                .validate(TokenType::Access, refresh_token)
-                .await
-            {
+            if let Ok(claims) = self.jwt_service.validate_refresh(refresh_token).await {
                 if let Err(e) = self
                     .jwt_service
                     .blacklist(&claims.jti.unwrap(), claims.exp)

@@ -17,7 +17,11 @@ use rusty_paseto::{
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{app::AppError, auth::dto::response::ServiceHealth, utils::health::check_redis_health};
+use crate::{
+    app::AppError,
+    auth::{dto::response::ServiceHealth, traits::JwtService},
+    utils::health::check_redis_health,
+};
 
 const ACCESS_TOKEN_DURATION: Duration = Duration::from_secs(5 * 60);
 const REFRESH_TOKEN_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
@@ -55,7 +59,7 @@ pub enum TokenType {
     Refresh,
 }
 
-pub struct JwtService {
+pub struct Jwt {
     redis_manager: ConnectionManager,
     symmetric_key: [u8; 32],
     private_key: [u8; 64],
@@ -64,7 +68,7 @@ pub struct JwtService {
     refresh_token_duration: Duration,
 }
 
-impl JwtService {
+impl Jwt {
     pub fn new(conn_manager: ConnectionManager) -> Self {
         let secret_key = env::var("JWT_SECRET_KEY").unwrap();
         if secret_key.len() < 32 {
@@ -98,68 +102,7 @@ impl JwtService {
         }
     }
 
-    pub fn get_public_key_base64(&self) -> String {
-        BASE64_URL_SAFE_NO_PAD.encode(&self.public_key)
-    }
-
-    pub async fn check_redis(&self) -> ServiceHealth {
-        check_redis_health(|| async {
-            let mut conn = self.redis_manager.clone();
-            use redis::AsyncCommands;
-            let _: String = conn.ping().await?;
-            Ok(())
-        })
-        .await
-    }
-
-    pub fn generate_token_pair(
-        &self,
-        user_id: Uuid,
-        username: &str,
-        role: Option<&str>,
-    ) -> TokenPair {
-        let now = Utc::now();
-        let access_exp = now + self.access_token_duration;
-        let refresh_exp = now + self.refresh_token_duration;
-
-        let access_token = self.create_token(&TokenClaimsTmp {
-            token_type: TokenType::Access,
-            sub: user_id.to_string(),
-            username: username.to_string(),
-            role: role.map(|s| s.to_owned()),
-            jti: None,
-            iat: now.to_rfc3339(),
-            exp: access_exp.to_rfc3339(),
-        });
-        let refresh_token = self.create_token(&TokenClaimsTmp {
-            token_type: TokenType::Refresh,
-            sub: user_id.to_string(),
-            username: username.to_string(),
-            role: role.map(|s| s.to_owned()),
-            jti: Some(Self::generate_jti()),
-            iat: now.to_rfc3339(),
-            exp: refresh_exp.to_rfc3339(),
-        });
-
-        TokenPair {
-            access_token,
-            refresh_token,
-        }
-    }
-
-    pub async fn validate_refresh(&self, token: &str) -> Result<TokenClaims, AppError> {
-        self.validate(TokenType::Refresh, token).await
-    }
-
-    pub async fn validate_access(&self, token: &str) -> Result<TokenClaims, AppError> {
-        self.validate(TokenType::Access, token).await
-    }
-
-    pub async fn validate(
-        &self,
-        token_type: TokenType,
-        token: &str,
-    ) -> Result<TokenClaims, AppError> {
+    async fn validate(&self, token_type: TokenType, token: &str) -> Result<TokenClaims, AppError> {
         let json_value = match token_type {
             TokenType::Access => {
                 let _key = Key::from(&self.public_key);
@@ -210,31 +153,6 @@ impl JwtService {
             iat,
             exp,
         })
-    }
-
-    pub async fn blacklist(&self, jti: &str, exp: i64) -> Result<(), AppError> {
-        let mut conn = self.redis_manager.clone();
-        let redis_key = format!("blacklist:{}", jti);
-
-        let now = Utc::now().timestamp();
-        let ttl = if exp - now <= 0 { 1 } else { exp };
-
-        use redis::AsyncCommands;
-        let () = conn.set_ex(&redis_key, "1", ttl as u64).await?;
-
-        Ok(())
-    }
-
-    pub async fn is_blacklisted(&self, jti: &str) -> Result<bool, AppError> {
-        let mut conn = self.redis_manager.clone();
-        let redis_key = format!("blacklist:{}", jti);
-
-        let exists: bool = {
-            use redis::AsyncCommands;
-            conn.exists(&redis_key).await?
-        };
-
-        Ok(exists)
     }
 
     fn generate_jti() -> String {
@@ -318,5 +236,84 @@ impl JwtService {
                 .build(&key)
                 .unwrap()
         }
+    }
+}
+
+impl JwtService for Jwt {
+    fn get_public_key_base64(&self) -> String {
+        BASE64_URL_SAFE_NO_PAD.encode(&self.public_key)
+    }
+
+    async fn check_redis(&self) -> ServiceHealth {
+        check_redis_health(|| async {
+            let mut conn = self.redis_manager.clone();
+            use redis::AsyncCommands;
+            let _: String = conn.ping().await?;
+            Ok(())
+        })
+        .await
+    }
+
+    fn generate_token_pair(&self, user_id: Uuid, username: &str, role: Option<&str>) -> TokenPair {
+        let now = Utc::now();
+        let access_exp = now + self.access_token_duration;
+        let refresh_exp = now + self.refresh_token_duration;
+
+        let access_token = self.create_token(&TokenClaimsTmp {
+            token_type: TokenType::Access,
+            sub: user_id.to_string(),
+            username: username.to_string(),
+            role: role.map(|s| s.to_owned()),
+            jti: None,
+            iat: now.to_rfc3339(),
+            exp: access_exp.to_rfc3339(),
+        });
+        let refresh_token = self.create_token(&TokenClaimsTmp {
+            token_type: TokenType::Refresh,
+            sub: user_id.to_string(),
+            username: username.to_string(),
+            role: role.map(|s| s.to_owned()),
+            jti: Some(Self::generate_jti()),
+            iat: now.to_rfc3339(),
+            exp: refresh_exp.to_rfc3339(),
+        });
+
+        TokenPair {
+            access_token,
+            refresh_token,
+        }
+    }
+
+    async fn validate_refresh(&self, token: &str) -> Result<TokenClaims, AppError> {
+        self.validate(TokenType::Refresh, token).await
+    }
+
+    async fn validate_access(&self, token: &str) -> Result<TokenClaims, AppError> {
+        self.validate(TokenType::Access, token).await
+    }
+
+    async fn blacklist(&self, jti: &str, exp: i64) -> Result<(), AppError> {
+        let mut conn = self.redis_manager.clone();
+        let redis_key = format!("blacklist:{}", jti);
+
+        let now = Utc::now().timestamp();
+        let ttl = if exp - now <= 0 { 1 } else { exp };
+
+        use redis::AsyncCommands;
+        let () = conn.set_ex(&redis_key, "1", ttl as u64).await?;
+
+        Ok(())
+    }
+
+    async fn is_blacklisted(&self, jti: &str) -> Result<bool, AppError> {
+        let mut conn = self.redis_manager.clone();
+        let redis_key = format!("blacklist:{}", jti);
+
+        let exists: bool = {
+            use redis::AsyncCommands;
+            conn.exists(&redis_key).await?
+        };
+
+        Ok(exists)
     }
 }
