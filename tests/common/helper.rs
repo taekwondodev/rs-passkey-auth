@@ -140,11 +140,47 @@ pub fn get_begin_register_error_test_cases() -> Vec<ErrorTestCase> {
     ]
 }
 
-pub async fn run_error_test_case(test_case: &ErrorTestCase) {
+pub fn get_finish_register_error_test_cases() -> Vec<ErrorTestCase> {
+    vec![
+        ErrorTestCase {
+            username: triggers::SESSION_NOT_FOUND,
+            expected_error: ExpectedError::NotFound(messages::SESSION_NOT_FOUND),
+            test_name: "session_not_found",
+        },
+        ErrorTestCase {
+            username: triggers::USER_NOT_FOUND,
+            expected_error: ExpectedError::NotFound(messages::USER_NOT_FOUND),
+            test_name: "user_not_found",
+        },
+        ErrorTestCase {
+            username: triggers::DB_ERROR,
+            expected_error: ExpectedError::InternalServer(messages::DB_CONNECTION_FAILED),
+            test_name: "database_error",
+        },
+    ]
+}
+
+pub async fn run_begin_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_begin_request_with_username(test_case.username);
 
     let result = auth_service.begin_register(request).await;
+
+    assert!(
+        result.is_err(),
+        "Test '{}' should fail but succeeded",
+        test_case.test_name
+    );
+
+    let error = result.unwrap_err();
+    test_case.expected_error.assert_matches(error);
+}
+
+pub async fn run_finish_register_error_test_case(test_case: &ErrorTestCase) {
+    let auth_service = create_auth_service();
+    let request = create_finish_request_with_username(test_case.username);
+
+    let result = auth_service.finish_register(request).await;
 
     assert!(
         result.is_err(),

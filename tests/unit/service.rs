@@ -3,7 +3,8 @@ use rs_passkey_auth::app::AppError;
 use crate::common::helper::{
     assert_successful_begin_register_response, assert_successful_finish_register_response,
     create_auth_service, create_begin_request, create_finish_request,
-    get_begin_register_error_test_cases, run_error_test_case,
+    get_begin_register_error_test_cases, get_finish_register_error_test_cases,
+    run_begin_register_error_test_case, run_finish_register_error_test_case,
 };
 
 #[tokio::test]
@@ -22,8 +23,8 @@ async fn begin_register_all_error_scenarios() {
     let test_cases = get_begin_register_error_test_cases();
 
     for test_case in &test_cases {
-        println!("Running test case: {}", test_case.test_name);
-        run_error_test_case(test_case).await;
+        println!("Running begin_register test case: {}", test_case.test_name);
+        run_begin_register_error_test_case(test_case).await;
     }
 }
 
@@ -33,8 +34,17 @@ async fn finish_register_success() -> Result<(), AppError> {
     let request = create_finish_request();
 
     let result = auth_service.finish_register(request).await;
-    println!("Result: {:?}", result);
     assert_successful_finish_register_response(result);
 
     Ok(())
+}
+
+#[tokio::test]
+async fn finish_register_all_error_scenarios() {
+    let test_cases = get_finish_register_error_test_cases();
+
+    for test_case in &test_cases {
+        println!("Running finish_register test case: {}", test_case.test_name);
+        run_finish_register_error_test_case(test_case).await;
+    }
 }

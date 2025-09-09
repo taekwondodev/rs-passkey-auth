@@ -138,16 +138,10 @@ impl AuthRepository for MockAuthRepository {
     async fn complete_registration(
         &self,
         _user_id: Uuid,
-        username: &str,
+        _username: &str,
         _passkey: &webauthn_rs::prelude::Passkey,
     ) -> Result<(), AppError> {
-        match username {
-            triggers::REGISTRATION_FAILED => Err(AppError::InternalServer(
-                messages::REGISTRATION_FAILED.to_string(),
-            )),
-            triggers::DB_ERROR => Err(AppError::InternalServer(messages::DB_ERROR.to_string())),
-            _ => Ok(()),
-        }
+        Ok(())
     }
 }
 

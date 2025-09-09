@@ -6,7 +6,6 @@ pub mod triggers {
     pub const USER_NOT_FOUND: &str = "user_not_found";
     pub const SESSION_NOT_FOUND: &str = "session_not_found";
     pub const NO_CREDENTIALS: &str = "no_credentials";
-    pub const REGISTRATION_FAILED: &str = "registration_failed";
 
     pub const INVALID_TOKEN: &str = "invalid_token";
     pub const EXPIRED_TOKEN: &str = "expired_token";
