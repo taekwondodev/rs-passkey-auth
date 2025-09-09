@@ -59,6 +59,6 @@ pub mod responses {
 pub mod test_data {
     pub const DEFAULT_USERNAME: &str = "test_user";
     pub const DEFAULT_ROLE: &str = "user";
-    pub const WEBAUTHN_ORIGIN: &str = "https://localhost:8080";
+    pub const WEBAUTHN_ORIGIN: &str = "http://localhost:3000";
     pub const WEBAUTHN_RP_NAME: &str = "localhost";
 }

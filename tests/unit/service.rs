@@ -1,7 +1,8 @@
 use rs_passkey_auth::app::AppError;
 
 use crate::common::helper::{
-    assert_successful_begin_register_response, create_auth_service, create_begin_request,
+    assert_successful_begin_register_response, assert_successful_finish_register_response,
+    create_auth_service, create_begin_request, create_finish_request,
     get_begin_register_error_test_cases, run_error_test_case,
 };
 
@@ -24,4 +25,16 @@ async fn begin_register_all_error_scenarios() {
         println!("Running test case: {}", test_case.test_name);
         run_error_test_case(test_case).await;
     }
+}
+
+#[tokio::test]
+async fn finish_register_success() -> Result<(), AppError> {
+    let auth_service = create_auth_service();
+    let request = create_finish_request();
+
+    let result = auth_service.finish_register(request).await;
+    println!("Result: {:?}", result);
+    assert_successful_finish_register_response(result);
+
+    Ok(())
 }

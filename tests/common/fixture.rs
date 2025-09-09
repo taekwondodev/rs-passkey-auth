@@ -5,11 +5,16 @@ use rs_passkey_auth::{
 };
 use uuid::Uuid;
 
+use crate::common::constants::{
+    responses::{MOCK_JTI, MOCK_SESSION_UUID},
+    test_data::{DEFAULT_ROLE, DEFAULT_USERNAME},
+};
+
 pub fn mock_user() -> User {
     User {
         id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
-        username: "test_user".to_string(),
-        role: Some("user".to_string()),
+        username: DEFAULT_USERNAME.to_string(),
+        role: Some(DEFAULT_ROLE.to_string()),
         status: "active".to_string(),
         created_at: Utc::now(),
         updated_at: Utc::now(),
@@ -19,9 +24,9 @@ pub fn mock_user() -> User {
 
 pub fn mock_session() -> WebAuthnSession {
     WebAuthnSession {
-        id: Uuid::parse_str("12345678-1234-1234-1234-123456789def").unwrap(),
+        id: Uuid::parse_str(MOCK_SESSION_UUID).unwrap(),
         user_id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
-        data: serde_json::json!({}),
+        data: mock_session_data(),
         purpose: "registration".to_string(),
         created_at: Utc::now(),
         expires_at: Utc::now() + chrono::Duration::minutes(10),
@@ -31,8 +36,8 @@ pub fn mock_session() -> WebAuthnSession {
 pub fn mock_access_claims() -> TokenClaims {
     TokenClaims {
         sub: Uuid::parse_str("12345678-1234-1234-1234-123456789ghi").unwrap(),
-        username: "test_user".to_string(),
-        role: Some("user".to_string()),
+        username: DEFAULT_USERNAME.to_string(),
+        role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 900,
         iat: chrono::Utc::now().timestamp(),
         jti: None,
@@ -42,10 +47,42 @@ pub fn mock_access_claims() -> TokenClaims {
 pub fn mock_refresh_claims() -> TokenClaims {
     TokenClaims {
         sub: Uuid::parse_str("12345678-1234-1234-1234-123456789llm").unwrap(),
-        username: "test_user".to_string(),
-        role: Some("user".to_string()),
+        username: DEFAULT_USERNAME.to_string(),
+        role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 3600,
         iat: chrono::Utc::now().timestamp(),
-        jti: Some("mock_jti".to_string()),
+        jti: Some(MOCK_JTI.to_string()),
     }
+}
+
+pub fn mock_credentials() -> serde_json::Value {
+    serde_json::json!({
+        "id": "ddqKTpT0rDW9bZGpVsNlC9gRYwA",
+        "rawId": "ddqKTpT0rDW9bZGpVsNlC9gRYwA",
+        "response": {
+            "attestationObject": "o2NmbXRkbm9uZWdhdHRTdG10oGhhdXRoRGF0YViYSZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2NdAAAAAPv8MAcVTk7MjAtuAgVX170AFHXaik6U9Kw1vW2RqVbDZQvYEWMApQECAyYgASFYICAcVADw5swzcjOny64uSpURBf5KTk0OtLBXw88XnebuIlggLg6ITKTw0skZ47_EdBA7A7TU6ihL61TwSgKyMRyaChE",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uY3JlYXRlIiwiY2hhbGxlbmdlIjoiVnpyTF94cXdqelU0M0EwN2VVR2JYVThJYXJKcVUybFM4OXRJZzV2ZmQxYyIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCIsImNyb3NzT3JpZ2luIjpmYWxzZX0"
+        },
+        "type": "public-key"
+    })
+}
+
+fn mock_session_data() -> serde_json::Value {
+    serde_json::json!({
+        "rs": {
+            "allow_synchronised_authenticators": true,
+            "authenticator_attachment": null,
+            "challenge": "VzrL_xqwjzU43A07eUGbXU8IarJqU2lS89tIg5vfd1c",
+            "credential_algorithms": ["ES256", "RS256"],
+            "exclude_credentials": [],
+            "extensions": {
+                "credProps": true,
+                "credentialProtectionPolicy": "userVerificationRequired",
+                "enforceCredentialProtectionPolicy": false,
+                "uvm": true
+            },
+            "policy": "required",
+            "require_resident_key": false
+        }
+    })
 }

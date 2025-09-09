@@ -1,13 +1,17 @@
 use rs_passkey_auth::{
     app::AppError,
-    auth::{dto::request::BeginRequest, service::AuthService},
+    auth::{
+        dto::request::{BeginRequest, FinishRequest},
+        service::AuthService,
+    },
 };
 use std::sync::Arc;
 use url::Url;
 use webauthn_rs::WebauthnBuilder;
 
 use crate::common::{
-    constants::{messages, test_data, triggers},
+    constants::{messages, responses::MOCK_SESSION_UUID, test_data, triggers},
+    fixture::mock_credentials,
     mock::{MockAuthRepository, MockJwtService},
 };
 
@@ -29,10 +33,26 @@ pub fn create_begin_request() -> BeginRequest {
     }
 }
 
+pub fn create_finish_request() -> FinishRequest {
+    FinishRequest {
+        username: test_data::DEFAULT_USERNAME.to_string(),
+        session_id: MOCK_SESSION_UUID.to_string(),
+        credentials: mock_credentials(),
+    }
+}
+
 pub fn create_begin_request_with_username(username: &str) -> BeginRequest {
     BeginRequest {
         username: username.to_string(),
         role: Some(test_data::DEFAULT_ROLE.to_string()),
+    }
+}
+
+pub fn create_finish_request_with_username(username: &str) -> FinishRequest {
+    FinishRequest {
+        username: username.to_string(),
+        session_id: MOCK_SESSION_UUID.to_string(),
+        credentials: mock_credentials(),
     }
 }
 
@@ -146,4 +166,15 @@ pub fn assert_successful_begin_register_response(
         "Session ID should not be empty"
     );
     assert!(!response.options.is_null(), "Options should not be null");
+}
+
+pub fn assert_successful_finish_register_response(
+    result: Result<rs_passkey_auth::auth::dto::response::MessageResponse, AppError>,
+) {
+    assert!(result.is_ok(), "finish_register should succeed");
+    let response = result.unwrap();
+    assert_eq!(
+        response.message,
+        "Registration completed successfully!".to_string()
+    );
 }
