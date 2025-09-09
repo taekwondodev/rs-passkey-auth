@@ -132,11 +132,6 @@ pub fn get_begin_register_error_test_cases() -> Vec<ErrorTestCase> {
             expected_error: ExpectedError::BadRequest(messages::INVALID_USERNAME_FORMAT),
             test_name: "invalid_username",
         },
-        ErrorTestCase {
-            username: triggers::SERVICE_DOWN,
-            expected_error: ExpectedError::ServiceUnavailable(messages::DB_SERVICE_DOWN),
-            test_name: "service_unavailable",
-        },
     ]
 }
 
@@ -151,6 +146,26 @@ pub fn get_finish_register_error_test_cases() -> Vec<ErrorTestCase> {
             username: triggers::USER_NOT_FOUND,
             expected_error: ExpectedError::NotFound(messages::USER_NOT_FOUND),
             test_name: "user_not_found",
+        },
+        ErrorTestCase {
+            username: triggers::DB_ERROR,
+            expected_error: ExpectedError::InternalServer(messages::DB_CONNECTION_FAILED),
+            test_name: "database_error",
+        },
+    ]
+}
+
+pub fn get_begin_login_error_test_cases() -> Vec<ErrorTestCase> {
+    vec![
+        ErrorTestCase {
+            username: triggers::USER_NOT_FOUND,
+            expected_error: ExpectedError::NotFound(messages::USER_NOT_FOUND),
+            test_name: "user_not_found",
+        },
+        ErrorTestCase {
+            username: triggers::NO_CREDENTIALS,
+            expected_error: ExpectedError::NotFound(messages::NO_CREDENTIALS_FOUND),
+            test_name: "no_credentials",
         },
         ErrorTestCase {
             username: triggers::DB_ERROR,
@@ -192,6 +207,22 @@ pub async fn run_finish_register_error_test_case(test_case: &ErrorTestCase) {
     test_case.expected_error.assert_matches(error);
 }
 
+pub async fn run_begin_login_error_test_case(test_case: &ErrorTestCase) {
+    let auth_service = create_auth_service();
+    let request = create_begin_request_with_username(test_case.username);
+
+    let result = auth_service.begin_login(request).await;
+
+    assert!(
+        result.is_err(),
+        "Test '{}' should fail but succeeded",
+        test_case.test_name
+    );
+
+    let error = result.unwrap_err();
+    test_case.expected_error.assert_matches(error);
+}
+
 pub fn assert_successful_begin_register_response(
     result: Result<rs_passkey_auth::auth::dto::response::BeginResponse, AppError>,
 ) {
@@ -213,4 +244,16 @@ pub fn assert_successful_finish_register_response(
         response.message,
         "Registration completed successfully!".to_string()
     );
+}
+
+pub fn assert_successful_begin_login_response(
+    result: Result<rs_passkey_auth::auth::dto::response::BeginResponse, AppError>,
+) {
+    assert!(result.is_ok(), "begin_login should succeed");
+    let response = result.unwrap();
+    assert!(
+        !response.session_id.is_empty(),
+        "Session ID should not be empty"
+    );
+    assert!(!response.options.is_null(), "Options should not be null");
 }

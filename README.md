@@ -93,3 +93,11 @@ Visit http://localhost:8080/swagger-ui for complete interactive documentation wi
 - **Configurable CORS**: Cross-origin protection
 - **Input Validation**: Rigorous validation of all inputs
 - **Error Handling**: Secure error handling without information leakage
+
+## Testing
+
+Run the tests locally:
+
+```bash
+cargo test -- --nocapture
+```
