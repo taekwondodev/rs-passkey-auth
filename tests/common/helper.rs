@@ -11,7 +11,7 @@ use webauthn_rs::WebauthnBuilder;
 
 use crate::common::{
     constants::{messages, responses::MOCK_SESSION_UUID, test_data, triggers},
-    fixture::mock_credentials,
+    fixture::{mock_login_credentials, mock_register_credentials},
     mock::{MockAuthRepository, MockJwtService},
 };
 
@@ -33,11 +33,19 @@ pub fn create_begin_request() -> BeginRequest {
     }
 }
 
-pub fn create_finish_request() -> FinishRequest {
+pub fn create_register_finish_request() -> FinishRequest {
     FinishRequest {
         username: test_data::DEFAULT_USERNAME.to_string(),
         session_id: MOCK_SESSION_UUID.to_string(),
-        credentials: mock_credentials(),
+        credentials: mock_register_credentials(),
+    }
+}
+
+pub fn create_login_finish_request() -> FinishRequest {
+    FinishRequest {
+        username: test_data::DEFAULT_USERNAME.to_string(),
+        session_id: MOCK_SESSION_UUID.to_string(),
+        credentials: mock_login_credentials(),
     }
 }
 
@@ -48,11 +56,19 @@ pub fn create_begin_request_with_username(username: &str) -> BeginRequest {
     }
 }
 
-pub fn create_finish_request_with_username(username: &str) -> FinishRequest {
+pub fn create_register_finish_request_with_username(username: &str) -> FinishRequest {
     FinishRequest {
         username: username.to_string(),
         session_id: MOCK_SESSION_UUID.to_string(),
-        credentials: mock_credentials(),
+        credentials: mock_register_credentials(),
+    }
+}
+
+pub fn create_login_finish_request_with_username(username: &str) -> FinishRequest {
+    FinishRequest {
+        username: username.to_string(),
+        session_id: MOCK_SESSION_UUID.to_string(),
+        credentials: mock_login_credentials(),
     }
 }
 
@@ -193,7 +209,7 @@ pub async fn run_begin_register_error_test_case(test_case: &ErrorTestCase) {
 
 pub async fn run_finish_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
-    let request = create_finish_request_with_username(test_case.username);
+    let request = create_register_finish_request_with_username(test_case.username);
 
     let result = auth_service.finish_register(request).await;
 
@@ -256,4 +272,17 @@ pub fn assert_successful_begin_login_response(
         "Session ID should not be empty"
     );
     assert!(!response.options.is_null(), "Options should not be null");
+}
+
+pub fn assert_successful_finish_login_response(
+    result: Result<(rs_passkey_auth::auth::dto::response::TokenResponse, String), AppError>,
+) {
+    assert!(result.is_ok(), "finish_login should succeed");
+    let (token_response, refresh) = result.unwrap();
+    assert_eq!(
+        token_response.message,
+        "Login completed successfully!".to_string()
+    );
+    assert_eq!(token_response.access_token, "mock_access_token".to_string());
+    assert_eq!(refresh, "mock_refresh_token".to_string());
 }

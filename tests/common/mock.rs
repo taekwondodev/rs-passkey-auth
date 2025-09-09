@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 use crate::common::{
     constants::{messages, responses, triggers},
-    fixture::{mock_access_claims, mock_refresh_claims, mock_session, mock_user},
+    fixture::{self, mock_access_claims, mock_refresh_claims, mock_user},
 };
 
 pub struct MockAuthRepository;
@@ -62,20 +62,30 @@ impl AuthRepository for MockAuthRepository {
         &self,
         _session_id: Uuid,
         username: &str,
-        _purpose: &str,
+        purpose: &str,
     ) -> Result<(User, WebAuthnSession), AppError> {
         match username {
             triggers::SESSION_NOT_FOUND => {
-                Err(AppError::NotFound(messages::SESSION_NOT_FOUND.to_string()))
+                return Err(AppError::NotFound(messages::SESSION_NOT_FOUND.to_string()));
             }
             triggers::USER_NOT_FOUND => {
-                Err(AppError::NotFound(messages::USER_NOT_FOUND.to_string()))
+                return Err(AppError::NotFound(messages::USER_NOT_FOUND.to_string()));
             }
-            triggers::DB_ERROR => Err(AppError::InternalServer(
-                messages::DB_CONNECTION_FAILED.to_string(),
-            )),
-            _ => Ok((mock_user(), mock_session())),
+            triggers::DB_ERROR => {
+                return Err(AppError::InternalServer(
+                    messages::DB_CONNECTION_FAILED.to_string(),
+                ));
+            }
+            _ => {}
         }
+
+        let session = match purpose {
+            "login" => fixture::mock_login_session(),
+            "registration" => fixture::mock_register_session(),
+            _ => fixture::mock_register_session(),
+        };
+
+        Ok((mock_user(), session))
     }
 
     async fn get_active_user_with_credential(

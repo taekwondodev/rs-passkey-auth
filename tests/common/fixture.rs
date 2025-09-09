@@ -22,12 +22,23 @@ pub fn mock_user() -> User {
     }
 }
 
-pub fn mock_session() -> WebAuthnSession {
+pub fn mock_register_session() -> WebAuthnSession {
     WebAuthnSession {
         id: Uuid::parse_str(MOCK_SESSION_UUID).unwrap(),
         user_id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
-        data: mock_session_data(),
+        data: mock_register_session_data(),
         purpose: "registration".to_string(),
+        created_at: Utc::now(),
+        expires_at: Utc::now() + chrono::Duration::minutes(10),
+    }
+}
+
+pub fn mock_login_session() -> WebAuthnSession {
+    WebAuthnSession {
+        id: Uuid::parse_str(MOCK_SESSION_UUID).unwrap(),
+        user_id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
+        data: mock_login_session_data(),
+        purpose: "login".to_string(),
         created_at: Utc::now(),
         expires_at: Utc::now() + chrono::Duration::minutes(10),
     }
@@ -55,7 +66,7 @@ pub fn mock_refresh_claims() -> TokenClaims {
     }
 }
 
-pub fn mock_credentials() -> serde_json::Value {
+pub fn mock_register_credentials() -> serde_json::Value {
     serde_json::json!({
         "id": "ddqKTpT0rDW9bZGpVsNlC9gRYwA",
         "rawId": "ddqKTpT0rDW9bZGpVsNlC9gRYwA",
@@ -67,7 +78,21 @@ pub fn mock_credentials() -> serde_json::Value {
     })
 }
 
-fn mock_session_data() -> serde_json::Value {
+pub fn mock_login_credentials() -> serde_json::Value {
+    serde_json::json!({
+        "id": "q5JZYrZEHrh-mqND0dYs0zPSyxM",
+        "rawId": "q5JZYrZEHrh-mqND0dYs0zPSyxM",
+        "response": {
+            "authenticatorData": "SZYN5YgOjGh0NBcPZHZgW4_krrmihjLHmVzzuoMdl2MdAAAAAA",
+            "clientDataJSON": "eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiOUtxZXZOVjhUQU92VWNLM3FQZXBIbHJOOUE1ekt1bWtQLTJrOG5DQW1WYyIsIm9yaWdpbiI6Imh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCIsImNyb3NzT3JpZ2luIjpmYWxzZX0",
+            "signature": "MEYCIQCixkIegU5fsn1PCP3ukNs_v_C-DRjRDzIcPkZ-CNN0KAIhAPKueNP0-pICYi5PBEUozZMbo2HgOA7prF9srY3L15Hz",
+            "userHandle": "IacOeI9BRyGjyUj8B6-58Q"
+        },
+        "type": "public-key"
+    })
+}
+
+fn mock_register_session_data() -> serde_json::Value {
     serde_json::json!({
         "rs": {
             "allow_synchronised_authenticators": true,
@@ -83,6 +108,49 @@ fn mock_session_data() -> serde_json::Value {
             },
             "policy": "required",
             "require_resident_key": false
+        }
+    })
+}
+
+fn mock_login_session_data() -> serde_json::Value {
+    serde_json::json!({
+        "ast": {
+            "allow_backup_eligible_upgrade": true,
+            "appid": null,
+            "challenge": "9KqevNV8TAOvUcK3qPepHlrN9A5zKumkP-2k8nCAmVc",
+            "credentials": [
+                {
+                    "attestation": {
+                        "data": "None",
+                        "metadata": "None"
+                    },
+                    "attestation_format": "none",
+                    "backup_eligible": true,
+                    "backup_state": true,
+                    "counter": 0,
+                    "cred": {
+                        "key": {
+                            "EC_EC2": {
+                                "curve": "SECP256R1",
+                                "x": "zVpmd8-E42cDhFe5jFlykaIHhJKXBpZVOyFPww0hD4s",
+                                "y": "pMqbaDbk8mp6FeTDE2-LR8weuC_E2sr7FX3P5EtfUKA"
+                            }
+                        },
+                        "type_": "ES256"
+                    },
+                    "cred_id": "q5JZYrZEHrh-mqND0dYs0zPSyxM",
+                    "extensions": {
+                        "appid": "NotRequested",
+                        "cred_props": "Ignored",
+                        "cred_protect": "Ignored",
+                        "hmac_create_secret": "NotRequested"
+                    },
+                    "registration_policy": "required",
+                    "transports": null,
+                    "user_verified": true
+                }
+            ],
+            "policy": "required"
         }
     })
 }
