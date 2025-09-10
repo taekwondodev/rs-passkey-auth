@@ -46,7 +46,7 @@ pub fn mock_login_session() -> WebAuthnSession {
 
 pub fn mock_access_claims() -> TokenClaims {
     TokenClaims {
-        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789ghi").unwrap(),
+        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789bbb").unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 900,
@@ -57,7 +57,7 @@ pub fn mock_access_claims() -> TokenClaims {
 
 pub fn mock_refresh_claims() -> TokenClaims {
     TokenClaims {
-        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789llm").unwrap(),
+        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789aaa").unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 3600,

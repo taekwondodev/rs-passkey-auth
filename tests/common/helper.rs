@@ -78,6 +78,12 @@ pub struct ErrorTestCase {
     pub test_name: &'static str,
 }
 
+pub struct RefreshErrorTestCase {
+    pub refresh_token: &'static str,
+    pub expected_error: ExpectedError,
+    pub test_name: &'static str,
+}
+
 pub enum ExpectedError {
     AlreadyExists(&'static str),
     InternalServer(&'static str),
@@ -211,6 +217,31 @@ pub fn get_finish_login_error_test_cases() -> Vec<ErrorTestCase> {
     ]
 }
 
+pub fn get_refresh_error_test_cases() -> Vec<RefreshErrorTestCase> {
+    vec![
+        RefreshErrorTestCase {
+            refresh_token: triggers::INVALID_TOKEN,
+            expected_error: ExpectedError::Unauthorized(messages::INVALID_REFRESH_TOKEN),
+            test_name: "invalid_token",
+        },
+        RefreshErrorTestCase {
+            refresh_token: triggers::EXPIRED_TOKEN,
+            expected_error: ExpectedError::Unauthorized(messages::TOKEN_EXPIRED),
+            test_name: "expired_token",
+        },
+        RefreshErrorTestCase {
+            refresh_token: triggers::MALFORMED_TOKEN,
+            expected_error: ExpectedError::BadRequest(messages::MALFORMED_TOKEN),
+            test_name: "malformed_token",
+        },
+        RefreshErrorTestCase {
+            refresh_token: triggers::REDIS_ERROR,
+            expected_error: ExpectedError::InternalServer(messages::REDIS_CONNECTION_FAILED),
+            test_name: "redis_error",
+        },
+    ]
+}
+
 pub async fn run_begin_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_begin_request_with_username(test_case.username);
@@ -275,6 +306,21 @@ pub async fn run_finish_login_error_test_case(test_case: &ErrorTestCase) {
     test_case.expected_error.assert_matches(error);
 }
 
+pub async fn run_refresh_error_test_case(test_case: &RefreshErrorTestCase) {
+    let auth_service = create_auth_service();
+
+    let result = auth_service.refresh(test_case.refresh_token).await;
+
+    assert!(
+        result.is_err(),
+        "Test '{}' should fail but succeeded",
+        test_case.test_name
+    );
+
+    let error = result.unwrap_err();
+    test_case.expected_error.assert_matches(error);
+}
+
 pub fn assert_successful_begin_register_response(
     result: Result<rs_passkey_auth::auth::dto::response::BeginResponse, AppError>,
 ) {
@@ -318,6 +364,19 @@ pub fn assert_successful_finish_login_response(
     assert_eq!(
         token_response.message,
         "Login completed successfully!".to_string()
+    );
+    assert_eq!(token_response.access_token, "mock_access_token".to_string());
+    assert_eq!(refresh, "mock_refresh_token".to_string());
+}
+
+pub fn assert_successful_refresh_response(
+    result: Result<(rs_passkey_auth::auth::dto::response::TokenResponse, String), AppError>,
+) {
+    assert!(result.is_ok(), "refresh should succeed");
+    let (token_response, refresh) = result.unwrap();
+    assert_eq!(
+        token_response.message,
+        "Refresh completed successfully!".to_string()
     );
     assert_eq!(token_response.access_token, "mock_access_token".to_string());
     assert_eq!(refresh, "mock_refresh_token".to_string());
