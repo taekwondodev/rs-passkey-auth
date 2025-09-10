@@ -34,6 +34,6 @@
 **/README.md
 **/.env
 **/.env*
-**/test
+**/tests
 **/mutants.out*/
 **/*.log
