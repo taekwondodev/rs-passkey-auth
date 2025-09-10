@@ -12,10 +12,29 @@ use std::sync::Arc;
 use url::Url;
 use webauthn_rs::{Webauthn, WebauthnBuilder};
 
+macro_rules! run_error_test_case {
+    ($auth_service:expr, $request:expr, $test_case:expr, $method:ident) => {
+        let result = $auth_service.$method($request).await;
+
+        assert!(
+            result.is_err(),
+            "Test '{}' should fail but succeeded",
+            $test_case.test_name
+        );
+
+        let error = result.unwrap_err();
+        $test_case.expected_error.assert_matches(error);
+    };
+}
+
 use crate::common::{
     constants::{
         messages,
-        responses::{DB_RESPONSE_TIME_MS, HEALTHY_STATUS_OK, MOCK_SESSION_UUID},
+        responses::{
+            DB_RESPONSE_TIME_MS, HEALTHY_STATUS_OK, LOGIN_SUCCESS, LOGOUT_SUCCESS,
+            MOCK_ACCESS_TOKEN, MOCK_REFRESH_TOKEN, MOCK_SESSION_UUID, REFRESH_SUCCESS,
+            REGISTRATION_SUCCESS,
+        },
         test_data, triggers,
     },
     fixture::{mock_login_credentials, mock_register_credentials},
@@ -310,65 +329,25 @@ pub fn get_logout_test_cases() -> Vec<LogoutTestCase> {
 pub async fn run_begin_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_begin_request_with_username(test_case.username);
-
-    let result = auth_service.begin_register(request).await;
-
-    assert!(
-        result.is_err(),
-        "Test '{}' should fail but succeeded",
-        test_case.test_name
-    );
-
-    let error = result.unwrap_err();
-    test_case.expected_error.assert_matches(error);
+    run_error_test_case!(auth_service, request, test_case, begin_register);
 }
 
 pub async fn run_finish_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_register_finish_request_with_username(test_case.username);
-
-    let result = auth_service.finish_register(request).await;
-
-    assert!(
-        result.is_err(),
-        "Test '{}' should fail but succeeded",
-        test_case.test_name
-    );
-
-    let error = result.unwrap_err();
-    test_case.expected_error.assert_matches(error);
+    run_error_test_case!(auth_service, request, test_case, finish_register);
 }
 
 pub async fn run_begin_login_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_begin_request_with_username(test_case.username);
-
-    let result = auth_service.begin_login(request).await;
-
-    assert!(
-        result.is_err(),
-        "Test '{}' should fail but succeeded",
-        test_case.test_name
-    );
-
-    let error = result.unwrap_err();
-    test_case.expected_error.assert_matches(error);
+    run_error_test_case!(auth_service, request, test_case, begin_login);
 }
 
 pub async fn run_finish_login_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_login_finish_request_with_username(test_case.username);
-
-    let result = auth_service.finish_login(request).await;
-
-    assert!(
-        result.is_err(),
-        "Test '{}' should fail but succeeded",
-        test_case.test_name
-    );
-
-    let error = result.unwrap_err();
-    test_case.expected_error.assert_matches(error);
+    run_error_test_case!(auth_service, request, test_case, finish_login);
 }
 
 pub async fn run_refresh_error_test_case(test_case: &RefreshErrorTestCase) {
@@ -399,7 +378,7 @@ pub async fn run_logout_test_case(test_case: &LogoutTestCase) {
             result
         );
         let response = result.unwrap();
-        assert_eq!(response.message, "Logout completed successfully!");
+        assert_eq!(response.message, LOGOUT_SUCCESS);
     }
 }
 
@@ -420,10 +399,7 @@ pub fn assert_successful_finish_register_response(
 ) {
     assert!(result.is_ok(), "finish_register should succeed");
     let response = result.unwrap();
-    assert_eq!(
-        response.message,
-        "Registration completed successfully!".to_string()
-    );
+    assert_eq!(response.message, REGISTRATION_SUCCESS);
 }
 
 pub fn assert_successful_begin_login_response(
@@ -443,12 +419,9 @@ pub fn assert_successful_finish_login_response(
 ) {
     assert!(result.is_ok(), "finish_login should succeed");
     let (token_response, refresh) = result.unwrap();
-    assert_eq!(
-        token_response.message,
-        "Login completed successfully!".to_string()
-    );
-    assert_eq!(token_response.access_token, "mock_access_token".to_string());
-    assert_eq!(refresh, "mock_refresh_token".to_string());
+    assert_eq!(token_response.message, LOGIN_SUCCESS);
+    assert_eq!(token_response.access_token, MOCK_ACCESS_TOKEN);
+    assert_eq!(refresh, MOCK_REFRESH_TOKEN);
 }
 
 pub fn assert_successful_refresh_response(
@@ -456,22 +429,16 @@ pub fn assert_successful_refresh_response(
 ) {
     assert!(result.is_ok(), "refresh should succeed");
     let (token_response, refresh) = result.unwrap();
-    assert_eq!(
-        token_response.message,
-        "Refresh completed successfully!".to_string()
-    );
-    assert_eq!(token_response.access_token, "mock_access_token".to_string());
-    assert_eq!(refresh, "mock_refresh_token".to_string());
+    assert_eq!(token_response.message, REFRESH_SUCCESS);
+    assert_eq!(token_response.access_token, MOCK_ACCESS_TOKEN);
+    assert_eq!(refresh, MOCK_REFRESH_TOKEN);
 }
 
 pub fn assert_successful_logout_response(
     result: Result<rs_passkey_auth::auth::dto::response::MessageResponse, AppError>,
 ) {
     assert!(result.is_ok(), "logout should succeed");
-    assert_eq!(
-        result.unwrap().message,
-        "Logout completed successfully!".to_string()
-    );
+    assert_eq!(result.unwrap().message, LOGOUT_SUCCESS);
 }
 
 pub fn assert_successful_healthy_response(
@@ -482,7 +449,7 @@ pub fn assert_successful_healthy_response(
     let db_checks = response.checks.database;
 
     assert_eq!(db_checks.status, HealthStatus::Healthy);
-    assert_eq!(db_checks.message, HEALTHY_STATUS_OK.to_string());
+    assert_eq!(db_checks.message, HEALTHY_STATUS_OK);
     assert!(db_checks.response_time_ms.is_some());
     assert_eq!(db_checks.response_time_ms.unwrap(), DB_RESPONSE_TIME_MS);
 }

@@ -7,15 +7,18 @@ use uuid::Uuid;
 
 use crate::common::constants::{
     responses::{MOCK_JTI, MOCK_SESSION_UUID},
-    test_data::{DEFAULT_ROLE, DEFAULT_USERNAME},
+    test_data::{
+        ACCESS_USER_UUID, DEFAULT_ROLE, DEFAULT_USER_UUID, DEFAULT_USERNAME, LOGIN_SESSION_PURPOSE,
+        REFRESH_USER_UUID, REGISTRATION_SESSION_PURPOSE, USER_STATUS_ACTIVE,
+    },
 };
 
 pub fn mock_user() -> User {
     User {
-        id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
+        id: Uuid::parse_str(DEFAULT_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
-        status: "active".to_string(),
+        status: USER_STATUS_ACTIVE.to_string(),
         created_at: Utc::now(),
         updated_at: Utc::now(),
         is_active: true,
@@ -25,9 +28,9 @@ pub fn mock_user() -> User {
 pub fn mock_register_session() -> WebAuthnSession {
     WebAuthnSession {
         id: Uuid::parse_str(MOCK_SESSION_UUID).unwrap(),
-        user_id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
+        user_id: Uuid::parse_str(DEFAULT_USER_UUID).unwrap(),
         data: mock_register_session_data(),
-        purpose: "registration".to_string(),
+        purpose: REGISTRATION_SESSION_PURPOSE.to_string(),
         created_at: Utc::now(),
         expires_at: Utc::now() + chrono::Duration::minutes(10),
     }
@@ -36,9 +39,9 @@ pub fn mock_register_session() -> WebAuthnSession {
 pub fn mock_login_session() -> WebAuthnSession {
     WebAuthnSession {
         id: Uuid::parse_str(MOCK_SESSION_UUID).unwrap(),
-        user_id: Uuid::parse_str("12345678-1234-1234-1234-123456789abc").unwrap(),
+        user_id: Uuid::parse_str(DEFAULT_USER_UUID).unwrap(),
         data: mock_login_session_data(),
-        purpose: "login".to_string(),
+        purpose: LOGIN_SESSION_PURPOSE.to_string(),
         created_at: Utc::now(),
         expires_at: Utc::now() + chrono::Duration::minutes(10),
     }
@@ -46,7 +49,7 @@ pub fn mock_login_session() -> WebAuthnSession {
 
 pub fn mock_access_claims() -> TokenClaims {
     TokenClaims {
-        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789bbb").unwrap(),
+        sub: Uuid::parse_str(ACCESS_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 900,
@@ -57,7 +60,7 @@ pub fn mock_access_claims() -> TokenClaims {
 
 pub fn mock_refresh_claims() -> TokenClaims {
     TokenClaims {
-        sub: Uuid::parse_str("12345678-1234-1234-1234-123456789aaa").unwrap(),
+        sub: Uuid::parse_str(REFRESH_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 3600,

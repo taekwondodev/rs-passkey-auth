@@ -10,7 +10,7 @@ use rs_passkey_auth::{
 use uuid::Uuid;
 
 use crate::common::{
-    constants::{messages, responses, triggers},
+    constants::{messages, responses, test_data, triggers},
     fixture::{self, mock_access_claims, mock_refresh_claims, mock_user},
 };
 
@@ -41,7 +41,7 @@ impl AuthRepository for MockAuthRepository {
         } else {
             ServiceHealth {
                 status: HealthStatus::Unhealthy,
-                message: "Database connection failed".to_string(),
+                message: messages::DB_CONNECTION_FAILED.to_string(),
                 response_time_ms: None,
             }
         }
@@ -102,8 +102,8 @@ impl AuthRepository for MockAuthRepository {
         }
 
         let session = match purpose {
-            "login" => fixture::mock_login_session(),
-            "registration" => fixture::mock_register_session(),
+            test_data::LOGIN_SESSION_PURPOSE => fixture::mock_login_session(),
+            test_data::REGISTRATION_SESSION_PURPOSE => fixture::mock_register_session(),
             _ => fixture::mock_register_session(),
         };
 
@@ -200,7 +200,7 @@ impl JwtService for MockJwtService {
         } else {
             ServiceHealth {
                 status: HealthStatus::Unhealthy,
-                message: "Redis connection failed".to_string(),
+                message: messages::REDIS_CONNECTION_FAILED.to_string(),
                 response_time_ms: None,
             }
         }

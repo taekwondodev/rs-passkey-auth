@@ -17,9 +17,6 @@ pub mod triggers {
     pub const SESSION_CREATION_ERROR_UUID: &str = "00000000-0000-0000-0000-000000000001";
     pub const SERVICE_UNAVAILABLE_UUID: &str = "00000000-0000-0000-0000-000000000002";
     pub const SESSION_NOT_FOUND_UUID: &str = "00000000-0000-0000-0000-000000000404";
-
-    pub const ERROR_CRED_ID: &[u8] = b"error_cred_id";
-    pub const DB_ERROR_CRED_ID: &[u8] = b"db_error";
 }
 
 pub mod messages {
@@ -31,9 +28,6 @@ pub mod messages {
     pub const SESSION_NOT_FOUND: &str = "Session not found";
     pub const NO_CREDENTIALS_FOUND: &str = "No credentials found";
     pub const SESSION_CREATION_FAILED: &str = "Session creation failed";
-    pub const REGISTRATION_FAILED: &str = "Registration failed";
-    pub const DB_ERROR: &str = "Database error";
-    pub const CREDENTIAL_NOT_FOUND: &str = "Credential not found";
 
     pub const INVALID_REFRESH_TOKEN: &str = "Invalid refresh token";
     pub const INVALID_ACCESS_TOKEN: &str = "Invalid access token";
@@ -53,11 +47,22 @@ pub mod responses {
     pub const HEALTHY_STATUS_OK: &str = "OK";
     pub const DB_RESPONSE_TIME_MS: u64 = 100;
     pub const REDIS_RESPONSE_TIME_MS: u64 = 30;
+
+    pub const REGISTRATION_SUCCESS: &str = "Registration completed successfully!";
+    pub const LOGIN_SUCCESS: &str = "Login completed successfully!";
+    pub const REFRESH_SUCCESS: &str = "Refresh completed successfully!";
+    pub const LOGOUT_SUCCESS: &str = "Logout completed successfully!";
 }
 
 pub mod test_data {
     pub const DEFAULT_USERNAME: &str = "test_user";
     pub const DEFAULT_ROLE: &str = "user";
+    pub const USER_STATUS_ACTIVE: &str = "active";
     pub const WEBAUTHN_ORIGIN: &str = "http://localhost:3000";
     pub const WEBAUTHN_RP_NAME: &str = "localhost";
+    pub const DEFAULT_USER_UUID: &str = "12345678-1234-1234-1234-123456789abc";
+    pub const REFRESH_USER_UUID: &str = "12345678-1234-1234-1234-123456789aaa";
+    pub const ACCESS_USER_UUID: &str = "12345678-1234-1234-1234-123456789bbb";
+    pub const LOGIN_SESSION_PURPOSE: &str = "login";
+    pub const REGISTRATION_SESSION_PURPOSE: &str = "registration";
 }
