@@ -133,15 +133,7 @@ impl AuthRepository for MockAuthRepository {
         Ok(())
     }
 
-    async fn update_credential(&self, cred_id: &[u8], _new_counter: u32) -> Result<(), AppError> {
-        if cred_id == triggers::ERROR_CRED_ID {
-            return Err(AppError::NotFound(
-                messages::CREDENTIAL_NOT_FOUND.to_string(),
-            ));
-        }
-        if cred_id == triggers::DB_ERROR_CRED_ID {
-            return Err(AppError::InternalServer(messages::DB_ERROR.to_string()));
-        }
+    async fn update_credential(&self, _cred_id: &[u8], _new_counter: u32) -> Result<(), AppError> {
         Ok(())
     }
 
