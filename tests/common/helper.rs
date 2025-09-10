@@ -1,27 +1,61 @@
 use rs_passkey_auth::{
     app::AppError,
     auth::{
-        dto::request::{BeginRequest, FinishRequest},
+        dto::{
+            request::{BeginRequest, FinishRequest},
+            response::HealthStatus,
+        },
         service::AuthService,
     },
 };
 use std::sync::Arc;
 use url::Url;
-use webauthn_rs::WebauthnBuilder;
+use webauthn_rs::{Webauthn, WebauthnBuilder};
 
 use crate::common::{
-    constants::{messages, responses::MOCK_SESSION_UUID, test_data, triggers},
+    constants::{
+        messages,
+        responses::{DB_RESPONSE_TIME_MS, HEALTHY_STATUS_OK, MOCK_SESSION_UUID},
+        test_data, triggers,
+    },
     fixture::{mock_login_credentials, mock_register_credentials},
     mock::{MockAuthRepository, MockJwtService},
 };
 
-pub fn create_auth_service() -> AuthService<MockAuthRepository, MockJwtService> {
-    let mock_auth_repo = Arc::new(MockAuthRepository);
-    let mock_jwt_service = Arc::new(MockJwtService);
-
+fn create_webauthn_service() -> Webauthn {
     let rp_origin = Url::parse(test_data::WEBAUTHN_ORIGIN).unwrap();
     let builder = WebauthnBuilder::new(test_data::WEBAUTHN_RP_NAME, &rp_origin).unwrap();
-    let webauthn = builder.build().unwrap();
+    builder.build().unwrap()
+}
+
+pub fn create_auth_service() -> AuthService<MockAuthRepository, MockJwtService> {
+    let mock_auth_repo = Arc::new(MockAuthRepository::default());
+    let mock_jwt_service = Arc::new(MockJwtService::default());
+    let webauthn = create_webauthn_service();
+
+    AuthService::new(webauthn, mock_auth_repo, mock_jwt_service)
+}
+
+pub fn create_auth_service_db_unhealthy() -> AuthService<MockAuthRepository, MockJwtService> {
+    let mock_auth_repo = Arc::new(MockAuthRepository::unhealthy());
+    let mock_jwt_service = Arc::new(MockJwtService::default());
+    let webauthn = create_webauthn_service();
+
+    AuthService::new(webauthn, mock_auth_repo, mock_jwt_service)
+}
+
+pub fn create_auth_service_redis_unhealthy() -> AuthService<MockAuthRepository, MockJwtService> {
+    let mock_auth_repo = Arc::new(MockAuthRepository::default());
+    let mock_jwt_service = Arc::new(MockJwtService::unhealthy());
+    let webauthn = create_webauthn_service();
+
+    AuthService::new(webauthn, mock_auth_repo, mock_jwt_service)
+}
+
+pub fn create_auth_service_both_unhealthy() -> AuthService<MockAuthRepository, MockJwtService> {
+    let mock_auth_repo = Arc::new(MockAuthRepository::unhealthy());
+    let mock_jwt_service = Arc::new(MockJwtService::unhealthy());
+    let webauthn = create_webauthn_service();
 
     AuthService::new(webauthn, mock_auth_repo, mock_jwt_service)
 }
@@ -438,4 +472,38 @@ pub fn assert_successful_logout_response(
         result.unwrap().message,
         "Logout completed successfully!".to_string()
     );
+}
+
+pub fn assert_successful_healthy_response(
+    result: Result<rs_passkey_auth::auth::dto::response::HealthResponse, AppError>,
+) {
+    assert!(result.is_ok(), "health_check should succeed");
+    let response = result.unwrap();
+    let db_checks = response.checks.database;
+
+    assert_eq!(db_checks.status, HealthStatus::Healthy);
+    assert_eq!(db_checks.message, HEALTHY_STATUS_OK.to_string());
+    assert!(db_checks.response_time_ms.is_some());
+    assert_eq!(db_checks.response_time_ms.unwrap(), DB_RESPONSE_TIME_MS);
+}
+
+pub fn assert_unhealthy_health_response(
+    result: Result<rs_passkey_auth::auth::dto::response::HealthResponse, AppError>,
+    expected_error_msg: &str,
+) {
+    assert!(
+        result.is_err(),
+        "health_check should fail when services are unhealthy"
+    );
+
+    match result.unwrap_err() {
+        AppError::ServiceUnavailable(msg) => {
+            assert!(
+                msg.contains(expected_error_msg),
+                "Error message should contain: {}",
+                expected_error_msg
+            );
+        }
+        other => panic!("Expected ServiceUnavailable error, got: {:?}", other),
+    }
 }

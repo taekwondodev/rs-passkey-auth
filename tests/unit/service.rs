@@ -2,9 +2,11 @@ use crate::common::{
     constants::responses::MOCK_REFRESH_TOKEN,
     helper::{
         assert_successful_begin_register_response, assert_successful_finish_login_response,
-        assert_successful_finish_register_response, assert_successful_logout_response,
-        assert_successful_refresh_response, create_auth_service, create_begin_request,
-        create_login_finish_request, create_register_finish_request,
+        assert_successful_finish_register_response, assert_successful_healthy_response,
+        assert_successful_logout_response, assert_successful_refresh_response,
+        assert_unhealthy_health_response, create_auth_service, create_auth_service_both_unhealthy,
+        create_auth_service_db_unhealthy, create_auth_service_redis_unhealthy,
+        create_begin_request, create_login_finish_request, create_register_finish_request,
         get_begin_login_error_test_cases, get_begin_register_error_test_cases,
         get_finish_login_error_test_cases, get_finish_register_error_test_cases,
         get_logout_test_cases, get_refresh_error_test_cases, run_begin_login_error_test_case,
@@ -123,4 +125,27 @@ async fn logout_all_error_scenarios() {
         println!("Running logout test case: {}", test_case.test_name);
         run_logout_test_case(test_case).await;
     }
+}
+
+#[tokio::test]
+async fn check_health_success() {
+    let auth_service = create_auth_service();
+
+    let result = auth_service.check_health().await;
+    assert_successful_healthy_response(result);
+}
+
+#[tokio::test]
+async fn check_all_unhealthy_scenarios() {
+    let auth_service_db_unhealthy = create_auth_service_db_unhealthy();
+    let result = auth_service_db_unhealthy.check_health().await;
+    assert_unhealthy_health_response(result, "Database");
+
+    let auth_service_redis_unhealthy = create_auth_service_redis_unhealthy();
+    let result = auth_service_redis_unhealthy.check_health().await;
+    assert_unhealthy_health_response(result, "Redis");
+
+    let auth_service_both_unhealthy = create_auth_service_both_unhealthy();
+    let result = auth_service_both_unhealthy.check_health().await;
+    assert_unhealthy_health_response(result, "services are unhealthy");
 }

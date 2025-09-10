@@ -14,14 +14,36 @@ use crate::common::{
     fixture::{self, mock_access_claims, mock_refresh_claims, mock_user},
 };
 
-pub struct MockAuthRepository;
+pub struct MockAuthRepository {
+    is_healthy: bool,
+}
+
+impl Default for MockAuthRepository {
+    fn default() -> Self {
+        Self { is_healthy: true }
+    }
+}
+
+impl MockAuthRepository {
+    pub fn unhealthy() -> Self {
+        Self { is_healthy: false }
+    }
+}
 
 impl AuthRepository for MockAuthRepository {
     async fn check_db(&self) -> ServiceHealth {
-        ServiceHealth {
-            status: HealthStatus::Healthy,
-            message: responses::HEALTHY_STATUS_OK.to_string(),
-            response_time_ms: Some(responses::DB_RESPONSE_TIME_MS),
+        if self.is_healthy {
+            ServiceHealth {
+                status: HealthStatus::Healthy,
+                message: responses::HEALTHY_STATUS_OK.to_string(),
+                response_time_ms: Some(responses::DB_RESPONSE_TIME_MS),
+            }
+        } else {
+            ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: "Database connection failed".to_string(),
+                response_time_ms: None,
+            }
         }
     }
 
@@ -147,7 +169,21 @@ impl AuthRepository for MockAuthRepository {
     }
 }
 
-pub struct MockJwtService;
+pub struct MockJwtService {
+    is_healthy: bool,
+}
+
+impl Default for MockJwtService {
+    fn default() -> Self {
+        Self { is_healthy: true }
+    }
+}
+
+impl MockJwtService {
+    pub fn unhealthy() -> Self {
+        Self { is_healthy: false }
+    }
+}
 
 impl JwtService for MockJwtService {
     fn get_public_key_base64(&self) -> String {
@@ -155,10 +191,18 @@ impl JwtService for MockJwtService {
     }
 
     async fn check_redis(&self) -> ServiceHealth {
-        ServiceHealth {
-            status: HealthStatus::Healthy,
-            message: responses::HEALTHY_STATUS_OK.to_string(),
-            response_time_ms: Some(responses::REDIS_RESPONSE_TIME_MS),
+        if self.is_healthy {
+            ServiceHealth {
+                status: HealthStatus::Healthy,
+                message: responses::HEALTHY_STATUS_OK.to_string(),
+                response_time_ms: Some(responses::REDIS_RESPONSE_TIME_MS),
+            }
+        } else {
+            ServiceHealth {
+                status: HealthStatus::Unhealthy,
+                message: "Redis connection failed".to_string(),
+                response_time_ms: None,
+            }
         }
     }
 
