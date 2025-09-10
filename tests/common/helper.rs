@@ -84,6 +84,12 @@ pub struct RefreshErrorTestCase {
     pub test_name: &'static str,
 }
 
+pub struct LogoutTestCase {
+    pub refresh_token: &'static str,
+    pub should_succeed: bool,
+    pub test_name: &'static str,
+}
+
 pub enum ExpectedError {
     AlreadyExists(&'static str),
     InternalServer(&'static str),
@@ -242,6 +248,31 @@ pub fn get_refresh_error_test_cases() -> Vec<RefreshErrorTestCase> {
     ]
 }
 
+pub fn get_logout_test_cases() -> Vec<LogoutTestCase> {
+    vec![
+        LogoutTestCase {
+            refresh_token: triggers::INVALID_TOKEN,
+            should_succeed: true,
+            test_name: "invalid_token_still_succeeds",
+        },
+        LogoutTestCase {
+            refresh_token: triggers::REDIS_ERROR,
+            should_succeed: true,
+            test_name: "redis_error_still_succeeds",
+        },
+        LogoutTestCase {
+            refresh_token: "valid_token",
+            should_succeed: true,
+            test_name: "valid_token_succeeds",
+        },
+        LogoutTestCase {
+            refresh_token: "",
+            should_succeed: true,
+            test_name: "empty_token_succeeds",
+        },
+    ]
+}
+
 pub async fn run_begin_register_error_test_case(test_case: &ErrorTestCase) {
     let auth_service = create_auth_service();
     let request = create_begin_request_with_username(test_case.username);
@@ -321,6 +352,23 @@ pub async fn run_refresh_error_test_case(test_case: &RefreshErrorTestCase) {
     test_case.expected_error.assert_matches(error);
 }
 
+pub async fn run_logout_test_case(test_case: &LogoutTestCase) {
+    let auth_service = create_auth_service();
+
+    let result = auth_service.logout(test_case.refresh_token).await;
+
+    if test_case.should_succeed {
+        assert!(
+            result.is_ok(),
+            "Test '{}' should succeed but failed: {:?}",
+            test_case.test_name,
+            result
+        );
+        let response = result.unwrap();
+        assert_eq!(response.message, "Logout completed successfully!");
+    }
+}
+
 pub fn assert_successful_begin_register_response(
     result: Result<rs_passkey_auth::auth::dto::response::BeginResponse, AppError>,
 ) {
@@ -380,4 +428,14 @@ pub fn assert_successful_refresh_response(
     );
     assert_eq!(token_response.access_token, "mock_access_token".to_string());
     assert_eq!(refresh, "mock_refresh_token".to_string());
+}
+
+pub fn assert_successful_logout_response(
+    result: Result<rs_passkey_auth::auth::dto::response::MessageResponse, AppError>,
+) {
+    assert!(result.is_ok(), "logout should succeed");
+    assert_eq!(
+        result.unwrap().message,
+        "Logout completed successfully!".to_string()
+    );
 }
