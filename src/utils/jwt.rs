@@ -27,36 +27,290 @@ const ACCESS_TOKEN_DURATION: Duration = Duration::from_secs(5 * 60);
 const REFRESH_TOKEN_DURATION: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TokenClaims {
-    pub sub: Uuid,
-    pub username: String,
-    pub role: Option<String>,
-    pub jti: Option<String>,
-    pub iat: i64,
-    pub exp: i64,
+pub enum TokenClaims {
+    Access {
+        sub: Uuid,
+        username: String,
+        role: Option<String>,
+        iat: i64,
+        exp: i64,
+    },
+    Refresh {
+        sub: Uuid,
+        username: String,
+        role: Option<String>,
+        jti: String,
+        iat: i64,
+        exp: i64,
+    },
 }
 
-#[derive(Debug, Clone)]
-pub struct TokenClaimsTmp {
-    pub token_type: TokenType,
-    pub sub: String,
-    pub username: String,
-    pub role: Option<String>,
-    pub jti: Option<String>,
-    pub iat: String,
-    pub exp: String,
+impl TokenClaims {
+    pub fn new_access(
+        user_id: Uuid,
+        username: String,
+        role: Option<String>,
+        duration: Duration,
+    ) -> Self {
+        let now = Utc::now();
+        let exp = now + duration;
+
+        TokenClaims::Access {
+            sub: user_id,
+            username,
+            role,
+            iat: now.timestamp(),
+            exp: exp.timestamp(),
+        }
+    }
+
+    pub fn new_refresh(
+        user_id: Uuid,
+        username: String,
+        role: Option<String>,
+        duration: Duration,
+    ) -> Self {
+        let now = Utc::now();
+        let exp = now + duration;
+
+        TokenClaims::Refresh {
+            sub: user_id,
+            username,
+            role,
+            jti: Self::generate_jti(),
+            iat: now.timestamp(),
+            exp: exp.timestamp(),
+        }
+    }
+
+    pub async fn validate_access_token(jwt: &Jwt, token: &str) -> Result<Self, AppError> {
+        let _key = Key::from(&jwt.public_key);
+        let key = PasetoAsymmetricPublicKey::<V4, Public>::from(&_key);
+        let json_value = PasetoParser::<V4, Public>::default().parse(token, &key)?;
+
+        Self::extract_access_claims(json_value).await
+    }
+
+    pub async fn validate_refresh_token(jwt: &Jwt, token: &str) -> Result<Self, AppError> {
+        let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&jwt.symmetric_key));
+        let json_value = PasetoParser::<V4, Local>::default().parse(token, &key)?;
+
+        Self::extract_refresh_claims(jwt, json_value).await
+    }
+
+    pub fn to_token(&self, jwt: &Jwt) -> String {
+        match self {
+            TokenClaims::Access { .. } => self.create_access_token(jwt),
+            TokenClaims::Refresh { .. } => self.create_refresh_token(jwt),
+        }
+    }
+
+    async fn extract_access_claims(json_value: serde_json::Value) -> Result<Self, AppError> {
+        let sub = Self::parse_uuid(&json_value, "sub");
+        let username = Self::parse_string(&json_value, "username");
+        let role = Self::parse_optional_string(&json_value, "role");
+        let (iat, exp) = Self::parse_timestamps(&json_value);
+
+        Self::check_expiration(exp)?;
+
+        Ok(TokenClaims::Access {
+            sub,
+            username,
+            role,
+            iat,
+            exp,
+        })
+    }
+
+    async fn extract_refresh_claims(
+        jwt: &Jwt,
+        json_value: serde_json::Value,
+    ) -> Result<Self, AppError> {
+        let sub = Self::parse_uuid(&json_value, "sub");
+        let username = Self::parse_string(&json_value, "username");
+        let role = Self::parse_optional_string(&json_value, "role");
+        let jti = Self::parse_string(&json_value, "jti");
+        let (iat, exp) = Self::parse_timestamps(&json_value);
+
+        Self::check_expiration(exp)?;
+
+        if jwt.is_blacklisted(&jti).await? {
+            return Err(AppError::Unauthorized("Token has been revoked".to_string()));
+        }
+
+        Ok(TokenClaims::Refresh {
+            sub,
+            username,
+            role,
+            jti,
+            iat,
+            exp,
+        })
+    }
+
+    fn create_access_token(&self, jwt: &Jwt) -> String {
+        if let TokenClaims::Access {
+            sub,
+            username,
+            role,
+            iat,
+            exp,
+        } = self
+        {
+            let _key = Key::from(&jwt.private_key);
+            let key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&_key);
+            let uid = sub.to_string();
+            let (iat_rfc, exp_rfc) = Self::format_timestamps(*iat, *exp);
+
+            if let Some(r) = role.as_ref() {
+                PasetoBuilder::<V4, Public>::default()
+                    .set_claim(SubjectClaim::from(uid.as_str()))
+                    .set_claim(ExpirationClaim::try_from(exp_rfc.as_str()).unwrap())
+                    .set_claim(IssuedAtClaim::try_from(iat_rfc.as_str()).unwrap())
+                    .set_claim(CustomClaim::try_from(("username", username.as_str())).unwrap())
+                    .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
+                    .build(&key)
+                    .unwrap()
+            } else {
+                PasetoBuilder::<V4, Public>::default()
+                    .set_claim(SubjectClaim::from(uid.as_str()))
+                    .set_claim(ExpirationClaim::try_from(exp_rfc.as_str()).unwrap())
+                    .set_claim(IssuedAtClaim::try_from(iat_rfc.as_str()).unwrap())
+                    .set_claim(CustomClaim::try_from(("username", username.as_str())).unwrap())
+                    .build(&key)
+                    .unwrap()
+            }
+        } else {
+            panic!("Invalid token type for access token creation");
+        }
+    }
+
+    fn create_refresh_token(&self, jwt: &Jwt) -> String {
+        if let TokenClaims::Refresh {
+            sub,
+            username,
+            role,
+            jti,
+            iat,
+            exp,
+        } = self
+        {
+            let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&jwt.symmetric_key));
+            let uid = sub.to_string();
+            let (iat_rfc, exp_rfc) = Self::format_timestamps(*iat, *exp);
+
+            if let Some(r) = role.as_ref() {
+                PasetoBuilder::<V4, Local>::default()
+                    .set_claim(SubjectClaim::from(uid.as_str()))
+                    .set_claim(ExpirationClaim::try_from(exp_rfc.as_str()).unwrap())
+                    .set_claim(IssuedAtClaim::try_from(iat_rfc.as_str()).unwrap())
+                    .set_claim(TokenIdentifierClaim::from(jti.as_str()))
+                    .set_claim(CustomClaim::try_from(("username", username.as_str())).unwrap())
+                    .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
+                    .build(&key)
+                    .unwrap()
+            } else {
+                PasetoBuilder::<V4, Local>::default()
+                    .set_claim(SubjectClaim::from(uid.as_str()))
+                    .set_claim(ExpirationClaim::try_from(exp_rfc.as_str()).unwrap())
+                    .set_claim(IssuedAtClaim::try_from(iat_rfc.as_str()).unwrap())
+                    .set_claim(TokenIdentifierClaim::from(jti.as_str()))
+                    .set_claim(CustomClaim::try_from(("username", username.as_str())).unwrap())
+                    .build(&key)
+                    .unwrap()
+            }
+        } else {
+            panic!("Expected Refresh token claims")
+        }
+    }
+
+    fn generate_jti() -> String {
+        let uuid = Uuid::new_v4();
+        BASE64_URL_SAFE_NO_PAD.encode(uuid.as_bytes())
+    }
+
+    fn parse_uuid(json_value: &serde_json::Value, field: &str) -> Uuid {
+        json_value[field].as_str().unwrap().parse().unwrap()
+    }
+
+    fn parse_string(json_value: &serde_json::Value, field: &str) -> String {
+        json_value[field].as_str().unwrap().to_string()
+    }
+
+    fn parse_optional_string(json_value: &serde_json::Value, field: &str) -> Option<String> {
+        json_value[field].as_str().map(|s| s.to_string())
+    }
+
+    fn parse_timestamps(json_value: &serde_json::Value) -> (i64, i64) {
+        let iat_str = json_value["iat"].as_str().unwrap();
+        let exp_str = json_value["exp"].as_str().unwrap();
+
+        let iat = chrono::DateTime::parse_from_rfc3339(iat_str)
+            .unwrap()
+            .timestamp();
+        let exp = chrono::DateTime::parse_from_rfc3339(exp_str)
+            .unwrap()
+            .timestamp();
+
+        (iat, exp)
+    }
+
+    fn format_timestamps(iat: i64, exp: i64) -> (String, String) {
+        let iat_rfc = chrono::DateTime::from_timestamp(iat, 0)
+            .unwrap()
+            .to_rfc3339();
+        let exp_rfc = chrono::DateTime::from_timestamp(exp, 0)
+            .unwrap()
+            .to_rfc3339();
+        (iat_rfc, exp_rfc)
+    }
+
+    fn check_expiration(exp: i64) -> Result<(), AppError> {
+        let now = Utc::now().timestamp();
+        if exp < now {
+            return Err(AppError::Unauthorized("Token has expired".to_string()));
+        }
+        Ok(())
+    }
+
+    pub fn sub(&self) -> &Uuid {
+        match self {
+            TokenClaims::Access { sub, .. } | TokenClaims::Refresh { sub, .. } => sub,
+        }
+    }
+
+    pub fn username(&self) -> &str {
+        match self {
+            TokenClaims::Access { username, .. } | TokenClaims::Refresh { username, .. } => {
+                username
+            }
+        }
+    }
+
+    pub fn role(&self) -> Option<&str> {
+        match self {
+            TokenClaims::Access { role, .. } | TokenClaims::Refresh { role, .. } => role.as_deref(),
+        }
+    }
+
+    pub fn jti(&self) -> Option<&str> {
+        match self {
+            TokenClaims::Access { .. } => None,
+            TokenClaims::Refresh { jti, .. } => Some(jti),
+        }
+    }
+
+    pub fn exp(&self) -> i64 {
+        match self {
+            TokenClaims::Access { exp, .. } | TokenClaims::Refresh { exp, .. } => *exp,
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct TokenPair {
     pub access_token: String,
     pub refresh_token: String,
-}
-
-#[derive(Debug, Clone)]
-pub enum TokenType {
-    Access,
-    Refresh,
 }
 
 pub struct Jwt {
@@ -101,142 +355,6 @@ impl Jwt {
             refresh_token_duration: REFRESH_TOKEN_DURATION,
         }
     }
-
-    async fn validate(&self, token_type: TokenType, token: &str) -> Result<TokenClaims, AppError> {
-        let json_value = match token_type {
-            TokenType::Access => {
-                let _key = Key::from(&self.public_key);
-                let key = PasetoAsymmetricPublicKey::<V4, Public>::from(&_key);
-                PasetoParser::<V4, Public>::default().parse(token, &key)?
-            }
-            TokenType::Refresh => {
-                let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.symmetric_key));
-                PasetoParser::<V4, Local>::default().parse(token, &key)?
-            }
-        };
-
-        self.extract_claims(json_value).await
-    }
-
-    async fn extract_claims(&self, json_value: serde_json::Value) -> Result<TokenClaims, AppError> {
-        let sub = Uuid::parse_str(json_value["sub"].as_str().unwrap()).unwrap();
-        let username = json_value["username"].as_str().unwrap().to_string();
-        let role = json_value["role"].as_str().map(|s| s.to_string());
-        let jti = json_value["jti"].as_str().map(|s| s.to_string());
-
-        let _iat = json_value["iat"].as_str().unwrap();
-        let iat = chrono::DateTime::parse_from_rfc3339(_iat)
-            .unwrap()
-            .timestamp();
-        let _exp = json_value["exp"].as_str().unwrap();
-        let exp = chrono::DateTime::parse_from_rfc3339(_exp)
-            .unwrap()
-            .timestamp();
-        let now = Utc::now().timestamp();
-        if exp < now {
-            return Err(AppError::Unauthorized(String::from("Token has expired")));
-        }
-
-        if let Some(ref j) = jti {
-            if self.is_blacklisted(&j).await? {
-                return Err(AppError::Unauthorized(String::from(
-                    "Token has been revoked",
-                )));
-            }
-        }
-
-        Ok(TokenClaims {
-            sub,
-            username,
-            role,
-            jti,
-            iat,
-            exp,
-        })
-    }
-
-    fn generate_jti() -> String {
-        let uuid = Uuid::new_v4();
-        BASE64_URL_SAFE_NO_PAD.encode(uuid.as_bytes())
-    }
-
-    fn create_token(&self, tmp_claims: &TokenClaimsTmp) -> String {
-        match tmp_claims.token_type {
-            TokenType::Access => {
-                let _key = Key::from(&self.private_key);
-                let key = PasetoAsymmetricPrivateKey::<V4, Public>::from(&_key);
-                self.create_access_token(key, tmp_claims)
-            }
-            TokenType::Refresh => {
-                let key = PasetoSymmetricKey::<V4, Local>::from(Key::from(&self.symmetric_key));
-                self.create_refresh_token(key, tmp_claims)
-            }
-        }
-    }
-
-    fn create_access_token(
-        &self,
-        key: PasetoAsymmetricPrivateKey<'_, V4, Public>,
-        tmp_claims: &TokenClaimsTmp,
-    ) -> String {
-        if let Some(ref r) = tmp_claims.role {
-            PasetoBuilder::<V4, Public>::default()
-                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
-                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
-                .set_claim(
-                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
-                )
-                .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
-                .build(&key)
-                .unwrap()
-        } else {
-            PasetoBuilder::<V4, Public>::default()
-                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
-                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
-                .set_claim(
-                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
-                )
-                .build(&key)
-                .unwrap()
-        }
-    }
-
-    fn create_refresh_token(
-        &self,
-        key: PasetoSymmetricKey<V4, Local>,
-        tmp_claims: &TokenClaimsTmp,
-    ) -> String {
-        if let Some(ref r) = tmp_claims.role {
-            PasetoBuilder::<V4, Local>::default()
-                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
-                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(
-                    tmp_claims.jti.as_ref().unwrap().as_str(),
-                ))
-                .set_claim(
-                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
-                )
-                .set_claim(CustomClaim::try_from(("role", r.as_str())).unwrap())
-                .build(&key)
-                .unwrap()
-        } else {
-            PasetoBuilder::<V4, Local>::default()
-                .set_claim(SubjectClaim::from(tmp_claims.sub.as_str()))
-                .set_claim(ExpirationClaim::try_from(tmp_claims.exp.as_str()).unwrap())
-                .set_claim(IssuedAtClaim::try_from(tmp_claims.iat.as_str()).unwrap())
-                .set_claim(TokenIdentifierClaim::from(
-                    tmp_claims.jti.as_ref().unwrap().as_str(),
-                ))
-                .set_claim(
-                    CustomClaim::try_from(("username", tmp_claims.username.as_str())).unwrap(),
-                )
-                .build(&key)
-                .unwrap()
-        }
-    }
 }
 
 impl JwtService for Jwt {
@@ -255,41 +373,32 @@ impl JwtService for Jwt {
     }
 
     fn generate_token_pair(&self, user_id: Uuid, username: &str, role: Option<&str>) -> TokenPair {
-        let now = Utc::now();
-        let access_exp = now + self.access_token_duration;
-        let refresh_exp = now + self.refresh_token_duration;
+        let access_claims = TokenClaims::new_access(
+            user_id,
+            username.to_string(),
+            role.map(|s| s.to_string()),
+            self.access_token_duration,
+        );
 
-        let access_token = self.create_token(&TokenClaimsTmp {
-            token_type: TokenType::Access,
-            sub: user_id.to_string(),
-            username: username.to_string(),
-            role: role.map(|s| s.to_owned()),
-            jti: None,
-            iat: now.to_rfc3339(),
-            exp: access_exp.to_rfc3339(),
-        });
-        let refresh_token = self.create_token(&TokenClaimsTmp {
-            token_type: TokenType::Refresh,
-            sub: user_id.to_string(),
-            username: username.to_string(),
-            role: role.map(|s| s.to_owned()),
-            jti: Some(Self::generate_jti()),
-            iat: now.to_rfc3339(),
-            exp: refresh_exp.to_rfc3339(),
-        });
+        let refresh_claims = TokenClaims::new_refresh(
+            user_id,
+            username.to_string(),
+            role.map(|s| s.to_string()),
+            self.refresh_token_duration,
+        );
 
         TokenPair {
-            access_token,
-            refresh_token,
+            access_token: access_claims.to_token(self),
+            refresh_token: refresh_claims.to_token(self),
         }
     }
 
     async fn validate_refresh(&self, token: &str) -> Result<TokenClaims, AppError> {
-        self.validate(TokenType::Refresh, token).await
+        TokenClaims::validate_refresh_token(self, token).await
     }
 
     async fn validate_access(&self, token: &str) -> Result<TokenClaims, AppError> {
-        self.validate(TokenType::Access, token).await
+        TokenClaims::validate_access_token(self, token).await
     }
 
     async fn blacklist(&self, jti: &str, exp: i64) -> Result<(), AppError> {

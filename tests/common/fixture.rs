@@ -48,24 +48,23 @@ pub fn mock_login_session() -> WebAuthnSession {
 }
 
 pub fn mock_access_claims() -> TokenClaims {
-    TokenClaims {
+    TokenClaims::Access {
         sub: Uuid::parse_str(ACCESS_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 900,
         iat: chrono::Utc::now().timestamp(),
-        jti: None,
     }
 }
 
 pub fn mock_refresh_claims() -> TokenClaims {
-    TokenClaims {
+    TokenClaims::Refresh {
         sub: Uuid::parse_str(REFRESH_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
         exp: chrono::Utc::now().timestamp() + 3600,
         iat: chrono::Utc::now().timestamp(),
-        jti: Some(MOCK_JTI.to_string()),
+        jti: MOCK_JTI.to_string(),
     }
 }
 
