@@ -2,28 +2,10 @@ use std::fmt::{self};
 
 use axum::{Json, http::StatusCode, response::IntoResponse};
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ErrorType {
-    InternalServerError,
-    NotFound,
-    AlreadyExists,
-    Unauthorized,
-    BadRequest,
-    ServiceUnavailable,
-}
-
-impl ErrorType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ErrorType::InternalServerError => "internal_server_error",
-            ErrorType::NotFound => "not_found",
-            ErrorType::AlreadyExists => "already_exists",
-            ErrorType::Unauthorized => "unauthorized",
-            ErrorType::BadRequest => "bad_request",
-            ErrorType::ServiceUnavailable => "service_unavailable",
-        }
-    }
+#[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+pub struct ErrorResponse {
+    #[schema(example = "username must be at least 3 characters")]
+    pub message: String,
 }
 
 #[derive(Debug)]
@@ -36,23 +18,15 @@ pub enum AppError {
     ServiceUnavailable(String),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-pub struct ErrorResponse {
-    #[schema(example = "bad_request")]
-    pub r#type: ErrorType,
-    #[schema(example = "Username must be at least 3 characters")]
-    pub message: String,
-}
-
 impl fmt::Display for AppError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AppError::InternalServer(msg) => write!(f, "Internal server error: {}", msg),
-            AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
-            AppError::AlreadyExists(msg) => write!(f, "Already exists: {}", msg),
-            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
-            AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
-            AppError::ServiceUnavailable(msg) => write!(f, "Service unavailable: {}", msg),
+            AppError::InternalServer(msg) => write!(f, "internal server error: {}", msg),
+            AppError::NotFound(msg) => write!(f, "not found: {}", msg),
+            AppError::AlreadyExists(msg) => write!(f, "already exists: {}", msg),
+            AppError::Unauthorized(msg) => write!(f, "unauthorized: {}", msg),
+            AppError::BadRequest(msg) => write!(f, "bad request: {}", msg),
+            AppError::ServiceUnavailable(msg) => write!(f, "service unavailable: {}", msg),
         }
     }
 }
@@ -61,39 +35,16 @@ impl std::error::Error for AppError {}
 
 impl IntoResponse for AppError {
     fn into_response(self) -> axum::response::Response {
-        let (status, error_type, message) = match self {
-            AppError::InternalServer(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ErrorType::InternalServerError,
-                self.to_string(),
-            ),
-            AppError::NotFound(_) => (StatusCode::NOT_FOUND, ErrorType::NotFound, self.to_string()),
-            AppError::AlreadyExists(_) => (
-                StatusCode::CONFLICT,
-                ErrorType::AlreadyExists,
-                self.to_string(),
-            ),
-            AppError::Unauthorized(_) => (
-                StatusCode::UNAUTHORIZED,
-                ErrorType::Unauthorized,
-                self.to_string(),
-            ),
-            AppError::BadRequest(_) => (
-                StatusCode::BAD_REQUEST,
-                ErrorType::BadRequest,
-                self.to_string(),
-            ),
-            AppError::ServiceUnavailable(_) => (
-                StatusCode::SERVICE_UNAVAILABLE,
-                ErrorType::ServiceUnavailable,
-                self.to_string(),
-            ),
+        let (status, message) = match self {
+            AppError::InternalServer(_) => (StatusCode::INTERNAL_SERVER_ERROR, self.to_string()),
+            AppError::NotFound(_) => (StatusCode::NOT_FOUND, self.to_string()),
+            AppError::AlreadyExists(_) => (StatusCode::CONFLICT, self.to_string()),
+            AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
+            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            AppError::ServiceUnavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
         };
 
-        let body = Json(ErrorResponse {
-            r#type: error_type,
-            message,
-        });
+        let body = Json(ErrorResponse { message });
 
         (status, body).into_response()
     }
