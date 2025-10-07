@@ -72,7 +72,7 @@ JWT_SECRET_KEY=your_very_long_and_secure_secret_key
 ### 3. Start the services
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 The service will be available at:
