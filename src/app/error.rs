@@ -1,6 +1,6 @@
 use std::fmt::{self};
 
-use axum::{Json, http::StatusCode, response::IntoResponse};
+use axum::{http::StatusCode, response::IntoResponse, Json};
 
 #[derive(serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 pub struct ErrorResponse {
@@ -16,6 +16,8 @@ pub enum AppError {
     Unauthorized(String),
     BadRequest(String),
     ServiceUnavailable(String),
+    TooManyRequests(String),
+    CircuitBreakerOpen(String),
 }
 
 impl fmt::Display for AppError {
@@ -27,6 +29,8 @@ impl fmt::Display for AppError {
             AppError::Unauthorized(msg) => write!(f, "unauthorized: {}", msg),
             AppError::BadRequest(msg) => write!(f, "bad request: {}", msg),
             AppError::ServiceUnavailable(msg) => write!(f, "service unavailable: {}", msg),
+            AppError::TooManyRequests(msg) => write!(f, "too many requests: {}", msg),
+            AppError::CircuitBreakerOpen(msg) => write!(f, "circuit breaker open: {}", msg),
         }
     }
 }
@@ -42,6 +46,8 @@ impl IntoResponse for AppError {
             AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
             AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             AppError::ServiceUnavailable(_) => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
+            AppError::TooManyRequests(_) => (StatusCode::TOO_MANY_REQUESTS, self.to_string()),
+            AppError::CircuitBreakerOpen(_) => (StatusCode::SERVICE_UNAVAILABLE, self.to_string()),
         };
 
         let body = Json(ErrorResponse { message });

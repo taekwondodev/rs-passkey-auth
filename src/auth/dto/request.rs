@@ -1,6 +1,6 @@
 use axum::{
-    Json,
     extract::{FromRequest, Request},
+    Json,
 };
 use serde::Deserialize;
 use utoipa::ToSchema;

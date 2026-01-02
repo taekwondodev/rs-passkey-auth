@@ -1,6 +1,6 @@
 use std::env;
 
-use redis::{Client, aio::ConnectionManager};
+use redis::{aio::ConnectionManager, Client};
 
 const REDIS_MAX_CONNECTIONS: u32 = 16;
 const CONNECTION_TIMEOUT: u64 = 5000;

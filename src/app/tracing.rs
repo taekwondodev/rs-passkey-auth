@@ -1,4 +1,4 @@
-use tracing_subscriber::{Layer, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Layer};
 
 pub fn init_tracing() {
     tracing_subscriber::registry()

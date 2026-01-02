@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD, Engine};
 use chrono::Utc;
-use jsonwebtoken::{Algorithm, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, Algorithm, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

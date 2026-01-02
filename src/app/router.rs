@@ -9,7 +9,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    app::{AppState, error::ErrorResponse, metrics},
+    app::{error::ErrorResponse, metrics, rate::create_rate_limiter, AppState},
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
@@ -78,13 +78,16 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
         .with_state(state)
         .split_for_parts();
 
+    let service_builder = ServiceBuilder::new()
+        .layer(DefaultBodyLimit::max(1024 * 1024))
+        .layer(http_trace_layer!())
+        .layer(metrics::create_prometheus_layer())
+        .layer(create_rate_limiter(
+            crate::app::rate::RateLimiterConfig::default(),
+        ));
+
     router
         .route("/metrics", get(metrics::metrics_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", api))
-        .layer(
-            ServiceBuilder::new()
-                .layer(DefaultBodyLimit::max(1024 * 1024))
-                .layer(http_trace_layer!())
-                .layer(metrics::create_prometheus_layer()),
-        )
+        .layer(service_builder)
 }

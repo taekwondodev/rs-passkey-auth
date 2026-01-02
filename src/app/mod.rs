@@ -1,5 +1,7 @@
+pub mod circuit_breaker;
 pub mod error;
 pub mod metrics;
+pub mod rate;
 pub mod router;
 pub mod server;
 pub mod state;

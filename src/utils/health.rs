@@ -48,7 +48,7 @@ where
 pub async fn check_redis_health<F, Fut>(health_check_fn: F) -> ServiceHealth
 where
     F: FnOnce() -> Fut,
-    Fut: Future<Output = Result<(), redis::RedisError>>,
+    Fut: Future<Output = Result<(), crate::app::AppError>>,
 {
     perform_health_check("Redis", Duration::from_secs(5), health_check_fn).await
 }

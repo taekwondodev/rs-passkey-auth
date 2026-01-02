@@ -1,7 +1,7 @@
 [package]
 name = "rs-passkey-auth"
 version = "0.2.0"
-edition = "2024"
+edition = "2021"
 
 [dependencies]
 tokio = { version = "1.47.1", features = ["full"] }
@@ -33,6 +33,8 @@ utoipa-axum = "0.2.0"
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum"] }
 prometheus = "0.14.0"
 axum-prometheus = "0.9.0"
-lazy_static = "1.5.0"
 jsonwebtoken = { version = "10.2.0", features = ["aws_lc_rs"] }
 time = { version = "0.3.44", features = ["macros"] }
+tower_governor = "0.8.0"
+governor = "0.10.4"
+failsafe = "1.3.0"

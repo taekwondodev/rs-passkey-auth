@@ -6,6 +6,9 @@ A secure authentication service using WebAuthn passkeys and JWT tokens, built wi
 
 - **WebAuthn Authentication**: Full support for passwordless passkeys
 - **JWT Tokens**: Secure tokens with Ed25519 cryptography
+- **Circuit Breaker Pattern**: Automatic failure detection and recovery for database and Redis
+- **Rate Limiting**: Per-IP request throttling to prevent abuse
+- **Exponential Backoff**: Intelligent retry mechanism for transient failures
 - **RESTful API**: Well-documented endpoints with Swagger UI
 - **PostgreSQL Database**: Robust and reliable storage
 - **Redis Cache**: Efficient session and token blacklist management
@@ -25,11 +28,13 @@ A secure authentication service using WebAuthn passkeys and JWT tokens, built wi
 - **Docker** - Containerization
 - **Prometheus** - Metrics and monitoring
 - **Swagger UI** - Interactive API documentation
+- **Failsafe** - Circuit breaker and resilience patterns
+- **Tower Governor** - Rate limiting middleware
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Rust 1.89+ (for local development)
+- Rust 1.92+ (for local development)
 - Git
 
 ## Quick Start
@@ -93,6 +98,8 @@ Visit http://localhost:8080/swagger-ui for complete interactive documentation wi
 - **Configurable CORS**: Cross-origin protection
 - **Input Validation**: Rigorous validation of all inputs
 - **Error Handling**: Secure error handling without information leakage
+- **Rate Limiting**: DDoS and brute-force attack prevention
+- **Circuit Breaker**: Protection against cascading failures
 
 ## Testing
 

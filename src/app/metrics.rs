@@ -1,31 +1,43 @@
+use std::sync::LazyLock;
+
 use axum::{http::StatusCode, response::IntoResponse};
 use axum_prometheus::PrometheusMetricLayer;
 
-lazy_static::lazy_static! {
-    pub static ref REGISTRATION_ATTEMPTS: prometheus::CounterVec = prometheus::register_counter_vec!(
+pub static REGISTRATION_ATTEMPTS: LazyLock<prometheus::CounterVec> = LazyLock::new(|| {
+    prometheus::register_counter_vec!(
         "webauthn_registration_attempts_total",
         "Total number of WebAuthn registration attempts",
         &["status"]
-    ).unwrap();
+    )
+    .unwrap()
+});
 
-    pub static ref LOGIN_ATTEMPTS: prometheus::CounterVec = prometheus::register_counter_vec!(
+pub static LOGIN_ATTEMPTS: LazyLock<prometheus::CounterVec> = LazyLock::new(|| {
+    prometheus::register_counter_vec!(
         "webauthn_login_attempts_total",
         "Total number of WebAuthn login attempts",
         &["status"]
-    ).unwrap();
+    )
+    .unwrap()
+});
 
-    pub static ref TOKEN_OPERATIONS: prometheus::CounterVec = prometheus::register_counter_vec!(
+pub static TOKEN_OPERATIONS: LazyLock<prometheus::CounterVec> = LazyLock::new(|| {
+    prometheus::register_counter_vec!(
         "jwt_token_operations_total",
         "Total number of JWT token operations",
         &["operation", "status"]
-    ).unwrap();
+    )
+    .unwrap()
+});
 
-    pub static ref HEALTH_CHECKS: prometheus::CounterVec = prometheus::register_counter_vec!(
+pub static HEALTH_CHECKS: LazyLock<prometheus::CounterVec> = LazyLock::new(|| {
+    prometheus::register_counter_vec!(
         "health_check_requests_total",
         "Total number of health check requests",
         &["status"]
-    ).unwrap();
-}
+    )
+    .unwrap()
+});
 
 /// Get Prometheus metrics
 ///

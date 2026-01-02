@@ -5,12 +5,14 @@ use redis::aio::ConnectionManager;
 use webauthn_rs::Webauthn;
 
 use crate::{
+    app::circuit_breaker::{CircuitBreaker, CircuitBreakerConfig},
     auth::{repo::Repository, service::AuthService},
     config::origin::OriginConfig,
     utils::{cookie::CookieService, jwt::jwt::Jwt},
 };
 
 pub type Service = AuthService<Repository, Jwt>;
+
 pub struct AppState {
     pub auth_service: Arc<Service>,
     pub cookie_service: Arc<CookieService>,
@@ -22,9 +24,16 @@ impl AppState {
         db: Pool,
         redis_manager: ConnectionManager,
         origin_config: OriginConfig,
+        circuit_breaker_config: CircuitBreakerConfig,
     ) -> Arc<Self> {
-        let user_repo = Arc::new(Repository::new(db));
-        let jwt_service = Arc::new(Jwt::new(redis_manager));
+        let db_circuit_breaker = Arc::new(CircuitBreaker::new(
+            "database",
+            circuit_breaker_config.clone(),
+        ));
+        let redis_circuit_breaker = Arc::new(CircuitBreaker::new("redis", circuit_breaker_config));
+
+        let user_repo = Arc::new(Repository::new(db, db_circuit_breaker));
+        let jwt_service = Arc::new(Jwt::new(redis_manager, redis_circuit_breaker));
         let auth_service = Arc::new(AuthService::new(webauthn, user_repo, jwt_service));
         let cookie_service = Arc::new(CookieService::new(&origin_config));
 

@@ -1,9 +1,10 @@
 use rs_passkey_auth::{
     app::{
-        AppState,
+        circuit_breaker::CircuitBreakerConfig,
         router::create_router,
-        server::{ServerConfig, start_server},
+        server::{start_server, ServerConfig},
         tracing::init_tracing,
+        AppState,
     },
     config::{
         origin::OriginConfig, postgres::DbConfig, redis::RedisConfig, webauthn::WebAuthnConfig,
@@ -24,8 +25,15 @@ async fn main() {
 
     let redis_config = RedisConfig::from_env();
     let manager = redis_config.create_conn_manager().await;
+    let circuit_breaker_config = CircuitBreakerConfig::default();
 
-    let state = AppState::new(webauthn, db_pool, manager, origin_config);
+    let state = AppState::new(
+        webauthn,
+        db_pool,
+        manager,
+        origin_config,
+        circuit_breaker_config,
+    );
     let app = create_router(state).layer(cors_layer);
 
     let server_config = ServerConfig::default();
