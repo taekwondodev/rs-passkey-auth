@@ -1,7 +1,7 @@
 use chrono::Utc;
 use rs_passkey_auth::{
     auth::model::{User, WebAuthnSession},
-    utils::jwt::TokenClaims,
+    utils::jwt::claims::{AccessTokenClaims, RefreshTokenClaims},
 };
 use uuid::Uuid;
 
@@ -47,8 +47,8 @@ pub fn mock_login_session() -> WebAuthnSession {
     }
 }
 
-pub fn mock_access_claims() -> TokenClaims {
-    TokenClaims::Access {
+pub fn mock_access_claims() -> AccessTokenClaims {
+    AccessTokenClaims {
         sub: Uuid::parse_str(ACCESS_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),
@@ -57,8 +57,8 @@ pub fn mock_access_claims() -> TokenClaims {
     }
 }
 
-pub fn mock_refresh_claims() -> TokenClaims {
-    TokenClaims::Refresh {
+pub fn mock_refresh_claims() -> RefreshTokenClaims {
+    RefreshTokenClaims {
         sub: Uuid::parse_str(REFRESH_USER_UUID).unwrap(),
         username: DEFAULT_USERNAME.to_string(),
         role: Some(DEFAULT_ROLE.to_string()),

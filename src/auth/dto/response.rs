@@ -44,22 +44,6 @@ impl IntoResponse for TokenResponse {
     }
 }
 
-#[derive(Debug, Serialize, ToSchema)]
-pub struct PublickKeyResponse {
-    #[schema(example = "MCowBQYDK2VwAyEA11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo")]
-    pub public_key: String,
-    #[schema(example = "Ed25519")]
-    pub algorithm: String,
-    #[schema(example = "PASETO_v4_public")]
-    pub key_type: String,
-}
-
-impl IntoResponse for PublickKeyResponse {
-    fn into_response(self) -> axum::response::Response {
-        Json(self).into_response()
-    }
-}
-
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct HealthResponse {
     #[schema(example = "2024-01-01T12:00:00Z")]

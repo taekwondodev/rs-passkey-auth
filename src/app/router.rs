@@ -15,7 +15,7 @@ use crate::{
             request::{BeginRequest, FinishRequest},
             response::{
                 BeginResponse, HealthChecks, HealthResponse, HealthStatus, MessageResponse,
-                PublickKeyResponse, ServiceHealth, TokenResponse,
+                ServiceHealth, TokenResponse,
             },
         },
         handler,
@@ -32,7 +32,6 @@ use crate::{
         handler::finish_login,
         handler::refresh,
         handler::logout,
-        handler::get_public_key,
         handler::healthz,
         metrics::metrics_handler,
     ),
@@ -43,7 +42,6 @@ use crate::{
             BeginResponse,
             MessageResponse,
             TokenResponse,
-            PublickKeyResponse,
             ErrorResponse,
             HealthResponse,
             ServiceHealth,
@@ -76,7 +74,6 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
         .route("/auth/login/finish", post(handler::finish_login))
         .route("/auth/refresh", post(handler::refresh))
         .route("/auth/logout", post(handler::logout))
-        .route("/auth/public-key", get(handler::get_public_key))
         .route("/healthz", get(handler::healthz))
         .with_state(state)
         .split_for_parts();

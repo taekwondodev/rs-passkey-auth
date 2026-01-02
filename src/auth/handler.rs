@@ -7,9 +7,7 @@ use crate::{
     app::{AppError, AppState, metrics},
     auth::dto::{
         request::{BeginRequest, FinishRequest},
-        response::{
-            BeginResponse, HealthResponse, MessageResponse, PublickKeyResponse, TokenResponse,
-        },
+        response::{BeginResponse, HealthResponse, MessageResponse, TokenResponse},
     },
 };
 
@@ -179,26 +177,6 @@ pub async fn logout(
     let updated_jar = jar.add(clear_cookie);
 
     Ok((updated_jar, response?))
-}
-
-/// Get public key
-///
-/// Returns the public key used for JWT token verification in PASETO format.
-#[utoipa::path(
-    get,
-    path = "/auth/public-key",
-    tag = "Authentication",
-    responses(
-        (status = 200, description = "Public key retrieved successfully", body = PublickKeyResponse),
-        (status = 500, description = "Internal server error", body = crate::app::error::ErrorResponse)
-    )
-)]
-pub async fn get_public_key(
-    State(state): State<Arc<AppState>>,
-) -> Result<PublickKeyResponse, AppError> {
-    let response = state.auth_service.get_public_key_base64();
-    metrics::track_token_operation("get_public_key", response.is_ok());
-    response
 }
 
 /// Comprehensive health check

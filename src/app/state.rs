@@ -7,7 +7,7 @@ use webauthn_rs::Webauthn;
 use crate::{
     auth::{repo::Repository, service::AuthService},
     config::origin::OriginConfig,
-    utils::{cookie::CookieService, jwt::Jwt},
+    utils::{cookie::CookieService, jwt::jwt::Jwt},
 };
 
 pub type Service = AuthService<Repository, Jwt>;

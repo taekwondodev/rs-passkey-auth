@@ -8,7 +8,7 @@ use crate::{
         dto::response::ServiceHealth,
         model::{User, WebAuthnSession},
     },
-    utils::jwt::TokenClaims,
+    utils::jwt::claims::{AccessTokenClaims, RefreshTokenClaims},
 };
 
 pub trait AuthRepository: Send + Sync {
@@ -56,22 +56,21 @@ pub trait AuthRepository: Send + Sync {
 }
 
 pub trait JwtService: Send + Sync {
-    fn get_public_key_base64(&self) -> String;
     fn check_redis(&self) -> impl Future<Output = ServiceHealth> + Send;
     fn generate_token_pair(
         &self,
         user_id: Uuid,
         username: &str,
         role: Option<&str>,
-    ) -> crate::utils::jwt::TokenPair;
+    ) -> crate::utils::jwt::jwt::TokenPair;
     fn validate_refresh(
         &self,
         token: &str,
-    ) -> impl Future<Output = Result<TokenClaims, AppError>> + Send;
+    ) -> impl Future<Output = Result<RefreshTokenClaims, AppError>> + Send;
     fn validate_access(
         &self,
         token: &str,
-    ) -> impl Future<Output = Result<TokenClaims, AppError>> + Send;
+    ) -> impl Future<Output = Result<AccessTokenClaims, AppError>> + Send;
     fn blacklist(&self, jti: &str, exp: i64) -> impl Future<Output = Result<(), AppError>> + Send;
     fn is_blacklisted(&self, jti: &str) -> impl Future<Output = Result<bool, AppError>> + Send;
 }

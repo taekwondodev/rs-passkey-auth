@@ -5,7 +5,10 @@ use rs_passkey_auth::{
         model::{User, WebAuthnSession},
         traits::{AuthRepository, JwtService},
     },
-    utils::jwt::{TokenClaims, TokenPair},
+    utils::jwt::{
+        claims::{AccessTokenClaims, RefreshTokenClaims},
+        jwt::TokenPair,
+    },
 };
 use uuid::Uuid;
 
@@ -186,10 +189,6 @@ impl MockJwtService {
 }
 
 impl JwtService for MockJwtService {
-    fn get_public_key_base64(&self) -> String {
-        responses::MOCK_PUBLIC_KEY.to_string()
-    }
-
     async fn check_redis(&self) -> ServiceHealth {
         if self.is_healthy {
             ServiceHealth {
@@ -218,7 +217,7 @@ impl JwtService for MockJwtService {
         }
     }
 
-    async fn validate_refresh(&self, token: &str) -> Result<TokenClaims, AppError> {
+    async fn validate_refresh(&self, token: &str) -> Result<RefreshTokenClaims, AppError> {
         match token {
             triggers::INVALID_TOKEN => Err(AppError::Unauthorized(
                 messages::INVALID_REFRESH_TOKEN.to_string(),
@@ -236,7 +235,7 @@ impl JwtService for MockJwtService {
         }
     }
 
-    async fn validate_access(&self, token: &str) -> Result<TokenClaims, AppError> {
+    async fn validate_access(&self, token: &str) -> Result<AccessTokenClaims, AppError> {
         match token {
             triggers::INVALID_TOKEN => Err(AppError::Unauthorized(
                 messages::INVALID_ACCESS_TOKEN.to_string(),

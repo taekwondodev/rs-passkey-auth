@@ -92,8 +92,8 @@ impl From<axum::extract::rejection::JsonRejection> for AppError {
     }
 }
 
-impl From<rusty_paseto::generic::GenericParserError> for AppError {
-    fn from(value: rusty_paseto::generic::GenericParserError) -> Self {
+impl From<jsonwebtoken::errors::Error> for AppError {
+    fn from(value: jsonwebtoken::errors::Error) -> Self {
         AppError::Unauthorized(value.to_string())
     }
 }

@@ -16,12 +16,13 @@ use crate::{
             request::{BeginRequest, FinishRequest},
             response::{
                 BeginResponse, HealthChecks, HealthResponse, HealthStatus, MessageResponse,
-                PublickKeyResponse, TokenResponse,
+                TokenResponse,
             },
         },
         model::WebAuthnSession,
         traits::{AuthRepository, JwtService},
     },
+    utils::jwt::claims::JwtClaims,
 };
 
 pub struct AuthService<R, J>
@@ -149,7 +150,7 @@ where
     pub async fn refresh(&self, refresh_token: &str) -> Result<(TokenResponse, String), AppError> {
         let claims = self.jwt_service.validate_refresh(refresh_token).await?;
         self.jwt_service
-            .blacklist(&claims.jti().unwrap(), claims.exp())
+            .blacklist(&claims.jti(), claims.exp())
             .await?;
 
         let token_pair = self.jwt_service.generate_token_pair(
@@ -169,11 +170,7 @@ where
     pub async fn logout(&self, refresh_token: &str) -> Result<MessageResponse, AppError> {
         if !refresh_token.is_empty() {
             if let Ok(claims) = self.jwt_service.validate_refresh(refresh_token).await {
-                if let Err(e) = self
-                    .jwt_service
-                    .blacklist(claims.jti().unwrap(), claims.exp())
-                    .await
-                {
+                if let Err(e) = self.jwt_service.blacklist(claims.jti(), claims.exp()).await {
                     tracing::error!("Failed to blacklist token during logout: {}", e);
                 }
             }
@@ -181,16 +178,6 @@ where
 
         Ok(MessageResponse {
             message: String::from("Logout completed successfully!"),
-        })
-    }
-
-    pub fn get_public_key_base64(&self) -> Result<PublickKeyResponse, AppError> {
-        let public_key = self.jwt_service.get_public_key_base64();
-
-        Ok(PublickKeyResponse {
-            public_key,
-            algorithm: String::from("Ed25519"),
-            key_type: String::from("PASETO_v4_public"),
         })
     }
 

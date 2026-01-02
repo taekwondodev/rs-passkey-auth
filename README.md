@@ -1,11 +1,11 @@
 # rs-passkey-auth
 
-A secure authentication service using WebAuthn passkeys and PASETO tokens, built with Rust and Axum.
+A secure authentication service using WebAuthn passkeys and JWT tokens, built with Rust and Axum.
 
 ## Features
 
 - **WebAuthn Authentication**: Full support for passwordless passkeys
-- **PASETO v4 Tokens**: Secure tokens with Ed25519 cryptography
+- **JWT Tokens**: Secure tokens with Ed25519 cryptography
 - **RESTful API**: Well-documented endpoints with Swagger UI
 - **PostgreSQL Database**: Robust and reliable storage
 - **Redis Cache**: Efficient session and token blacklist management
@@ -19,7 +19,7 @@ A secure authentication service using WebAuthn passkeys and PASETO tokens, built
 - **Rust** - Programming language
 - **Axum** - Async web framework
 - **WebAuthn-rs** - WebAuthn implementation
-- **PASETO** - Secure authentication tokens
+- **JWT** - Secure authentication tokens
 - **PostgreSQL** - Primary database
 - **Redis** - Cache and session management
 - **Docker** - Containerization
@@ -87,7 +87,7 @@ Visit http://localhost:8080/swagger-ui for complete interactive documentation wi
 
 ## Security
 
-- **Ed25519 Cryptography**: PASETO tokens with secure digital signatures
+- **Ed25519 Cryptography**: JWT tokens with secure digital signatures
 - **WebAuthn Standard**: Standards-compliant passwordless authentication
 - **Token Blacklisting**: Secure refresh token invalidation
 - **Configurable CORS**: Cross-origin protection
