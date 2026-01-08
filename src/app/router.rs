@@ -9,7 +9,7 @@ use utoipa_axum::router::OpenApiRouter;
 use utoipa_swagger_ui::SwaggerUi;
 
 use crate::{
-    app::{error::ErrorResponse, metrics, rate::create_rate_limiter, AppState},
+    app::{error::ErrorResponse, metrics, AppState},
     auth::{
         dto::{
             request::{BeginRequest, FinishRequest},
@@ -56,7 +56,7 @@ use crate::{
     ),
     info(
         title = "rs-passkey-auth API",
-        description = "A secure authentication service using WebAuthn passkeys and PASETO tokens",
+        description = "A secure authentication service using WebAuthn passkeys and JWT tokens",
         version = "0.1.0",
         license(
             name = "MIT",
@@ -81,10 +81,7 @@ pub fn create_router(state: std::sync::Arc<AppState>) -> axum::Router {
     let service_builder = ServiceBuilder::new()
         .layer(DefaultBodyLimit::max(1024 * 1024))
         .layer(http_trace_layer!())
-        .layer(metrics::create_prometheus_layer())
-        .layer(create_rate_limiter(
-            crate::app::rate::RateLimiterConfig::default(),
-        ));
+        .layer(metrics::create_prometheus_layer());
 
     router
         .route("/metrics", get(metrics::metrics_handler))

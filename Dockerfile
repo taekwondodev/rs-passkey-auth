@@ -1,4 +1,4 @@
-ARG RUST_VERSION=1.89.0
+ARG RUST_VERSION=1.92.0
 ARG APP_NAME=rs-passkey-auth
 
 ################################################################################

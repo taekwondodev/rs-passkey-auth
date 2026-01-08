@@ -7,7 +7,6 @@ A secure authentication service using WebAuthn passkeys and JWT tokens, built wi
 - **WebAuthn Authentication**: Full support for passwordless passkeys
 - **JWT Tokens**: Secure tokens with Ed25519 cryptography
 - **Circuit Breaker Pattern**: Automatic failure detection and recovery for database and Redis
-- **Rate Limiting**: Per-IP request throttling to prevent abuse
 - **Exponential Backoff**: Intelligent retry mechanism for transient failures
 - **RESTful API**: Well-documented endpoints with Swagger UI
 - **PostgreSQL Database**: Robust and reliable storage
@@ -29,7 +28,6 @@ A secure authentication service using WebAuthn passkeys and JWT tokens, built wi
 - **Prometheus** - Metrics and monitoring
 - **Swagger UI** - Interactive API documentation
 - **Failsafe** - Circuit breaker and resilience patterns
-- **Tower Governor** - Rate limiting middleware
 
 ## Prerequisites
 
@@ -52,27 +50,7 @@ cd rs-passkey-auth
 cp .env.example .env
 ```
 
-Edit the `.env` file with your configurations:
-
-```env
-# PostgreSQL Database
-DB_HOST=postgres
-DB_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password
-POSTGRES_DB=passkey_db
-
-# Redis
-REDIS_URL=redis://redis:6379
-
-# WebAuthn
-WEBAUTHN_RP_NAME=your-app-name
-URL_BACKEND=http://localhost:8080
-ORIGIN_FRONTEND=http://localhost:3000
-
-# JWT Secret (generate a secure key of at least 32 characters)
-JWT_SECRET_KEY=your_very_long_and_secure_secret_key
-```
+**Edit the `.env` file with your configurations**
 
 ### 3. Start the services
 
@@ -98,7 +76,6 @@ Visit http://localhost:8080/swagger-ui for complete interactive documentation wi
 - **Configurable CORS**: Cross-origin protection
 - **Input Validation**: Rigorous validation of all inputs
 - **Error Handling**: Secure error handling without information leakage
-- **Rate Limiting**: DDoS and brute-force attack prevention
 - **Circuit Breaker**: Protection against cascading failures
 
 ## Testing

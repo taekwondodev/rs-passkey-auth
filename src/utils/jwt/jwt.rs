@@ -1,4 +1,5 @@
-use base64::{engine::general_purpose::URL_SAFE_NO_PAD as BASE64_URL_SAFE_NO_PAD, Engine};
+use base64::prelude::BASE64_STANDARD;
+use base64::Engine;
 use chrono::Utc;
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use jsonwebtoken::{DecodingKey, EncodingKey};
@@ -86,7 +87,7 @@ impl Jwt {
         ];
         pkcs8.extend_from_slice(&private_key_bytes);
 
-        let encoded = BASE64_URL_SAFE_NO_PAD.encode(&pkcs8);
+        let encoded = BASE64_STANDARD.encode(&pkcs8);
 
         let mut pem = Vec::new();
         pem.extend_from_slice(b"-----BEGIN PRIVATE KEY-----\n");
@@ -113,7 +114,7 @@ impl Jwt {
         ];
         spki.extend_from_slice(&public_key_bytes);
 
-        let encoded = BASE64_URL_SAFE_NO_PAD.encode(&spki);
+        let encoded = BASE64_STANDARD.encode(&spki);
 
         let mut pem = Vec::new();
         pem.extend_from_slice(b"-----BEGIN PUBLIC KEY-----\n");
