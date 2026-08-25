@@ -1,15 +1,21 @@
-# Triage Labels
+# Issue labels
 
-The skills speak in terms of five canonical triage roles (meanings in `triage/SKILL.md`'s Roles section). This file maps those roles to the actual label strings used in this repo's issue tracker.
+Il workflow usa queste categorie e questi stati.
 
-| Canonical role    | Label in this tracker |
-| ------------------ | ---------------------- |
-| `needs-triage`      | `needs-triage`          |
-| `needs-info`        | `needs-info`            |
-| `ready-for-agent`   | `ready-for-agent`       |
-| `ready-for-human`   | `ready-for-human`       |
-| `wontfix`           | `wontfix`               |
+## Category labels
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
+`bug` e `enhancement` sono le categorie fisse per la cattura rapida. Non fanno
+parte della mappatura degli stati.
 
-Edit the right-hand column if this repo's tracker already uses different names — don't create duplicate labels for the same role.
+## Issue state labels
+
+| Canonical role | Label in this tracker |
+|---|---|
+| `needs-grilling` | `needs-grilling` |
+| `ready-for-agent` | `ready-for-agent` |
+
+`needs-grilling` indica un issue iniziale ancora incompleto. Viene sostituita da
+`ready-for-agent` quando la specifica completa è stata pubblicata.
+
+Quando una skill nomina un ruolo o uno stato, usa la label corrispondente.
+Non creare label duplicate per lo stesso significato.

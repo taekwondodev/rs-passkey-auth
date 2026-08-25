@@ -1,38 +1,36 @@
-# Domain Docs
+# Domain docs
 
-How the dev-cycle skills should consume this repo's domain documentation when exploring the codebase.
+Questo repository usa un layout single-context.
 
-## Before exploring, read these
+## Prima dell'esplorazione
 
-- **`CONTEXT.md`** at the repo root
-- **`docs/adr/`** — read ADRs that touch the area you're about to work in.
+Leggi:
 
-If any of these files don't exist, **proceed silently**. Don't flag their absence; don't suggest creating them upfront. The `/domain-modeling` skill (reached via `/grill-with-docs`, `/wayfinder`'s Grilling tickets, and `/triage`) creates them lazily when terms or decisions actually get resolved.
+- `CONTEXT.md` alla root.
+- Gli ADR in `docs/adr/` che riguardano l'area da modificare.
 
-## File structure
+Se un documento non esiste, procedi senza segnalare l'assenza. Il domain
+modeling crea questi documenti quando un termine o una decisione viene
+effettivamente risolto.
 
-Single-context repo:
+## Layout
 
-```
+```text
 /
 ├── CONTEXT.md
 ├── docs/adr/
-│   ├── 0001-generic-ports-dyn-trait-exception.md
-│   ├── 0002-domain-error-boundary-conversion.md
-│   ├── 0003-auth-token-strategy.md
-│   ├── 0004-hkdf-single-secret.md
-│   └── 0005-claims-data-behavior-split.md
 └── crates/
 ```
 
-## Use the glossary's vocabulary
+## Vocabolario
 
-When your output names a domain concept (in an issue title, a ticket, a spec, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
+Quando un output nomina un concetto di dominio, usa il termine definito in
+`CONTEXT.md`. Non sostituirlo con sinonimi che il glossario sconsiglia.
 
-If the concept you need isn't in the glossary yet, that's a signal — either you're inventing language the project doesn't use (reconsider) or there's a real gap (note it for `/domain-modeling`).
+Se il concetto necessario non è ancora definito, trattalo come possibile gap di
+domain modeling invece di inventare una nuova terminologia.
 
-## Flag ADR conflicts
+## Conflitti ADR
 
-If your output contradicts an existing ADR, surface it explicitly rather than silently overriding:
-
-> _Contradicts ADR-0003 (auth token strategy) — but worth reopening because…_
+Se un output contraddice un ADR esistente, dichiaralo esplicitamente e valuta
+se l'ADR debba essere riaperto. Non sovrascrivere silenziosamente una decisione.
